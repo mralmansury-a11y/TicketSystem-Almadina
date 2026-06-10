@@ -206,6 +206,36 @@ tbody td{padding:12px 14px;font-size:13px;color:var(--ink);vertical-align:middle
 .note-input-wrap{display:flex;gap:8px;margin-top:10px}
 .note-input-wrap .inp{flex:1}
 
+/* ═══════════════════════════════════════════ COMPLETE MODAL */
+.complete-modal .modal{max-width:520px}
+.problem-box{
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:var(--radius-sm);
+  padding:16px;
+  margin-bottom:18px;
+}
+.problem-box-label{
+  font-size:10px;font-weight:700;color:var(--ink3);
+  text-transform:uppercase;letter-spacing:.07em;
+  display:flex;align-items:center;gap:6px;margin-bottom:12px;
+}
+.problem-box-label i{color:var(--orange)}
+.problem-row{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+.problem-row:last-child{border-bottom:none;padding-bottom:0}
+.problem-row-key{font-size:11px;font-weight:600;color:var(--ink3);min-width:110px;flex-shrink:0;padding-top:1px}
+.problem-row-val{font-size:13px;color:var(--ink);line-height:1.6;flex:1}
+.solution-section label{
+  font-size:12px;font-weight:700;color:var(--ink2);
+  display:flex;align-items:center;gap:6px;margin-bottom:8px;
+}
+.solution-section label i{color:var(--green)}
+.solution-section textarea{min-height:110px}
+.solution-required-hint{
+  font-size:11px;color:var(--red);margin-top:6px;
+  display:none;
+}
+
 /* ═══════════════════════════════════════════ CHARTS */
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
@@ -640,6 +670,62 @@ tbody td{padding:12px 14px;font-size:13px;color:var(--ink);vertical-align:middle
   </div>
 </div>
 
+<!-- COMPLETE TICKET MODAL -->
+<div class="modal-overlay complete-modal" id="completeModal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(52,209,122,.15);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:17px;">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div>
+          <h3 style="color:var(--ink);">إتمام البلاغ</h3>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px;" id="completingTicketNo"></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('completeModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Problem details section -->
+      <div class="problem-box" id="completeTicketDetails">
+        <div class="problem-box-label">
+          <i class="fas fa-clipboard-list"></i>
+          تفاصيل البلاغ
+        </div>
+        <div id="completeProblemRows">
+          <div style="text-align:center;padding:20px;color:var(--ink3);">
+            <i class="fas fa-spinner fa-spin"></i>
+          </div>
+        </div>
+      </div>
+      <!-- Solution section -->
+      <div class="solution-section">
+        <label>
+          <i class="fas fa-lightbulb"></i>
+          الحل المُطبَّق <span style="color:var(--red);">*</span>
+        </label>
+        <textarea
+          id="solutionInput"
+          class="inp"
+          placeholder="اكتب هنا الحل الذي طبّقته لحل هذه المشكلة..."
+          oninput="onSolutionInput()"
+        ></textarea>
+        <div class="solution-required-hint" id="solutionRequiredHint">
+          <i class="fas fa-exclamation-circle"></i> الرجاء كتابة الحل قبل إتمام البلاغ
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-ghost" onclick="closeModal('completeModal')">
+        <i class="fas fa-times"></i> إلغاء
+      </button>
+      <button class="btn btn-success" id="confirmCompleteBtn" onclick="confirmComplete()">
+        <i class="fas fa-check"></i> تأكيد الإتمام
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD/EDIT USER MODAL -->
 <div class="modal-overlay" id="userModal">
   <div class="modal" style="max-width:460px;">
@@ -687,6 +773,8 @@ let S={user:null,role:null,fullname:null,techs:[],depts:[],issues:[],adminData:[
 let charts={};
 const fv={name:false,email:false,phone:false,dept:false,issue:false,desc:false};
 let editingUserId=null;
+// State for complete modal
+let completingTicket=null;
 
 // ════════════════════════════════════════════════ INIT
 window.addEventListener('load',async()=>{
@@ -897,7 +985,7 @@ function renderTechTable(data){
     const priCls=`pri-${r.priority||'عادي'}`;
     let action='';
     if(r.status==='جديد') action=`<button class="btn btn-outline btn-sm" onclick="updateSt('${r.ticket_no}','قيد التنفيذ')"><i class="fas fa-play"></i> بدء</button>`;
-    else if(r.status==='قيد التنفيذ') action=`<button class="btn btn-success btn-sm" onclick="updateSt('${r.ticket_no}','مكتمل')"><i class="fas fa-check"></i> إتمام</button>`;
+    else if(r.status==='قيد التنفيذ') action=`<button class="btn btn-success btn-sm" onclick="openCompleteModal('${r.ticket_no}')"><i class="fas fa-check"></i> إتمام</button>`;
     else action=`<span style="color:var(--green);font-size:12px;"><i class="fas fa-check-circle"></i> مكتمل</span>`;
     html+=`<tr>
       <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${r.ticket_no}</strong></td>
@@ -913,7 +1001,90 @@ function renderTechTable(data){
   document.getElementById('techTbody').innerHTML=html;
 }
 async function selfAssign(ticketNo){await fetch(`/api/tickets/${ticketNo}/assign`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tech:S.user})});toast('تم تعيين البلاغ لك','success');loadTech()}
-async function updateSt(ticketNo,status){await fetch(`/api/tickets/${ticketNo}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});toast(status==='مكتمل'?'تم إكمال البلاغ ✓':'جاري التنفيذ...','success');loadTech()}
+async function updateSt(ticketNo,status){await fetch(`/api/tickets/${ticketNo}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});toast('جاري التنفيذ...','info');loadTech()}
+
+// ════════════════════════════════════════════════ COMPLETE MODAL
+async function openCompleteModal(ticketNo){
+  completingTicket = ticketNo;
+  document.getElementById('completingTicketNo').textContent = `رقم البلاغ: ${ticketNo}`;
+  document.getElementById('solutionInput').value = '';
+  document.getElementById('solutionInput').classList.remove('valid','invalid');
+  document.getElementById('solutionRequiredHint').style.display = 'none';
+  document.getElementById('completeProblemRows').innerHTML =
+    `<div style="text-align:center;padding:16px;color:var(--ink3);"><i class="fas fa-spinner fa-spin"></i></div>`;
+  document.getElementById('completeModal').classList.add('open');
+
+  // Fetch ticket details
+  try {
+    const res = await fetch(`/api/tickets/${ticketNo}`);
+    const t = await res.json();
+    const priCls = `pri-${t.priority||'عادي'}`;
+    const priIcon = t.priority==='حرج'?'fire':t.priority==='عاجل'?'bolt':'circle-dot';
+
+    const rows = [
+      {key:'اسم الموظف', val: t.name},
+      {key:'القسم',       val: t.dept},
+      {key:'نوع المشكلة', val: t.issue},
+      {key:'الأولوية',   val: `<span class="${priCls}" style="font-weight:700;"><i class="fas fa-${priIcon}"></i> ${t.priority||'عادي'}</span>`},
+      {key:'تاريخ الإنشاء', val: t.created_at||'—'},
+    ];
+    if(t.description && t.description.trim()){
+      rows.push({key:'وصف المشكلة', val: `<span style="line-height:1.7;">${t.description}</span>`});
+    }
+
+    document.getElementById('completeProblemRows').innerHTML = rows.map(r=>`
+      <div class="problem-row">
+        <span class="problem-row-key">${r.key}</span>
+        <span class="problem-row-val">${r.val}</span>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('completeProblemRows').innerHTML =
+      `<div style="color:var(--red);font-size:12px;padding:8px;">تعذّر تحميل البيانات</div>`;
+  }
+}
+
+function onSolutionInput(){
+  const val = document.getElementById('solutionInput').value.trim();
+  const hint = document.getElementById('solutionRequiredHint');
+  if(val.length > 0){
+    hint.style.display = 'none';
+    document.getElementById('solutionInput').classList.remove('invalid');
+    document.getElementById('solutionInput').classList.add('valid');
+  }
+}
+
+async function confirmComplete(){
+  const solution = document.getElementById('solutionInput').value.trim();
+  const hint = document.getElementById('solutionRequiredHint');
+  if(!solution){
+    hint.style.display = 'flex';
+    document.getElementById('solutionInput').classList.add('invalid');
+    document.getElementById('solutionInput').focus();
+    return;
+  }
+  const btn = document.getElementById('confirmCompleteBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+  try{
+    await fetch(`/api/tickets/${completingTicket}/status`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'مكتمل', solution})
+    });
+    closeModal('completeModal');
+    toast('تم إكمال البلاغ بنجاح ✓','success');
+    loadTech();
+  }catch{
+    toast('حدث خطأ أثناء الحفظ','error');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-check"></i> تأكيد الإتمام';
+}
+
+// Close complete modal on backdrop click
+document.getElementById('completeModal').addEventListener('click',function(e){
+  if(e.target===this) closeModal('completeModal');
+});
 
 // ════════════════════════════════════════════════ TICKET MODAL
 async function openTicketModal(ticketNo){
@@ -923,6 +1094,12 @@ async function openTicketModal(ticketNo){
   document.getElementById('modalFooter').innerHTML='';
   const res=await fetch(`/api/tickets/${ticketNo}`),data=await res.json();
   const badge=data.status==='مكتمل'?'badge-done':data.status==='قيد التنفيذ'?'badge-proc':'badge-new';
+  const solutionBlock = (data.solution && data.solution.trim())
+    ? `<div style="background:rgba(52,209,122,.08);border:1px solid rgba(52,209,122,.2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;">
+        <div style="font-size:10px;font-weight:600;color:var(--green);text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-bottom:6px;"><i class="fas fa-lightbulb"></i> الحل المُطبَّق</div>
+        <div style="font-size:13px;color:var(--ink);line-height:1.7;">${data.solution}</div>
+       </div>`
+    : '';
   document.getElementById('modalBody').innerHTML=`
     <div class="detail-grid">
       <div class="detail-item"><label>الموظف</label><span>${data.name}</span></div>
@@ -935,6 +1112,7 @@ async function openTicketModal(ticketNo){
       <div class="detail-item"><label>تاريخ الإكمال</label><span>${data.completed_at||'—'}</span></div>
     </div>
     ${data.description?`<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;"><div style="font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;margin-bottom:6px;">وصف المشكلة</div><div style="font-size:13px;color:var(--ink2);line-height:1.7;">${data.description}</div></div>`:''}
+    ${solutionBlock}
     <div class="notes-section">
       <h4><i class="fas fa-comments"></i> الملاحظات (${data.notes.length})</h4>
       <div id="notesList">${data.notes.length?data.notes.map(n=>`<div class="note-item"><div class="note-meta"><span class="note-author">${n.author}</span><span class="note-time">${n.created_at}</span></div><div class="note-text">${n.note}</div></div>`).join(''):'<div style="color:var(--ink3);font-size:12px;text-align:center;padding:10px;">لا توجد ملاحظات</div>'}</div>
