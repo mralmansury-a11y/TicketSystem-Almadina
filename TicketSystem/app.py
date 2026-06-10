@@ -34,7 +34,8 @@ def init_db():
         updated_at   TEXT,
         email        TEXT,
         phone        TEXT,
-        priority     TEXT DEFAULT 'عادي'
+        priority     TEXT DEFAULT 'عادي',
+        solution     TEXT DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS users (
         id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,6 +63,13 @@ def init_db():
         created_at TEXT NOT NULL
     );
     """)
+
+    # Add solution column if it doesn't exist (migration for existing DBs)
+    try:
+        c.execute("ALTER TABLE tickets ADD COLUMN solution TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        pass
 
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
@@ -327,9 +335,13 @@ def api_assign(ticket_no):
 
 @app.route("/api/tickets/<ticket_no>/status", methods=["POST"])
 def api_update_status(ticket_no):
-    status = request.json.get("status"); conn = get_db(); c = conn.cursor(); ts = now_str()
+    d = request.json
+    status = d.get("status")
+    solution = d.get("solution", "")
+    conn = get_db(); c = conn.cursor(); ts = now_str()
     if status == "مكتمل":
-        c.execute("UPDATE tickets SET status=?,completed_at=?,updated_at=? WHERE ticket_no=?",(status,ts,ts,ticket_no))
+        c.execute("UPDATE tickets SET status=?,completed_at=?,updated_at=?,solution=? WHERE ticket_no=?",
+                  (status, ts, ts, solution, ticket_no))
     else:
         c.execute("UPDATE tickets SET status=?,updated_at=? WHERE ticket_no=?",(status,ts,ticket_no))
     conn.commit(); conn.close(); return jsonify({"success":True})
@@ -433,6 +445,7 @@ def api_export_excel():
     RED    = "BE123C"; LIGHT_RED   = "FFE4E6"
     WHITE  = "FFFFFF"; GRAY_ROW    = "F8FAFC"; GRAY_HDR   = "1E293B"
     TEXT_DARK = "111827"; TEXT_MID = "374151"
+    PURPLE = "7C3AED"; LIGHT_PURPLE = "EDE9FE"
 
     thin = Side(style="thin",color="CBD5E1")
     border_all = Border(left=thin,right=thin,top=thin,bottom=thin)
@@ -463,8 +476,8 @@ def api_export_excel():
     # ── Sheet 1: Tickets ──
     ws1 = wb.active; ws1.title = "البلاغات"
     ws1.sheet_view.rightToLeft = True
-    headers1 = ["رقم البلاغ","الاسم","القسم","نوع المشكلة","الأولوية","الحالة","الفني المعيّن","البريد الإلكتروني","الهاتف","تاريخ الإنشاء","تاريخ الإكمال","وصف المشكلة"]
-    widths1   = [12,18,20,22,10,14,16,22,16,18,18,40]
+    headers1 = ["رقم البلاغ","الاسم","القسم","نوع المشكلة","الأولوية","الحالة","الفني المعيّن","البريد الإلكتروني","الهاتف","تاريخ الإنشاء","تاريخ الإكمال","وصف المشكلة","الحل المُطبَّق"]
+    widths1   = [12,18,20,22,10,14,16,22,16,18,18,40,40]
     write_header(ws1, headers1, widths1)
 
     for i,t in enumerate(tickets,2):
@@ -474,7 +487,8 @@ def api_export_excel():
         row_bg = GRAY_ROW if i%2==0 else WHITE
         vals = [t["ticket_no"],t["name"],t["dept"],t["issue"],pri,status,
                 t.get("tech","—") or "—",t.get("email",""),t.get("phone",""),
-                t.get("created_at",""),t.get("completed_at","") or "—",t.get("description","")]
+                t.get("created_at",""),t.get("completed_at","") or "—",
+                t.get("description",""),t.get("solution","") or "—"]
         for col,val in enumerate(vals,1):
             cell = ws1.cell(row=i,column=col,value=val)
             cell.border = border_all
@@ -485,6 +499,11 @@ def api_export_excel():
             elif col==6:
                 cell.font = Font(name="Arial",size=10,bold=True,color=STATUS_COLOR.get(status,TEXT_DARK))
                 cell.fill = fill(STATUS_BG.get(status,row_bg))
+            elif col==13:
+                # solution column – green tint if has content
+                has_sol = val and val != "—"
+                cell.font = Font(name="Arial",size=10,bold=has_sol,color=GREEN if has_sol else TEXT_DARK)
+                cell.fill = fill(LIGHT_GREEN if has_sol else row_bg)
             else:
                 cell.font = cell_font(); cell.fill = fill(row_bg)
 
@@ -567,6 +586,168 @@ def api_export_excel():
                     color=MID_BLUE if u["role"]=="admin" else GREEN)
             c4.fill = fill(bg); c4.border = border_all; c4.alignment = center()
 
+    # ── Sheet 5: Tech Report (تقرير الفنيين) ──
+    ws5 = wb.create_sheet("تقرير الفنيين"); ws5.sheet_view.rightToLeft = True
+
+    # Build per-tech statistics
+    tech_stats = {}
+    for t in tickets:
+        tech = t.get("tech","")
+        if not tech:
+            continue
+        if tech not in tech_stats:
+            tech_stats[tech] = {
+                "total": 0, "completed": 0, "in_progress": 0, "new": 0,
+                "resolution_times": [], "tickets": []
+            }
+        tech_stats[tech]["total"] += 1
+        if t["status"] == "مكتمل":
+            tech_stats[tech]["completed"] += 1
+            if t.get("created_at") and t.get("completed_at"):
+                try:
+                    t1 = datetime.strptime(t["created_at"][:16],"%Y-%m-%d %H:%M")
+                    t2 = datetime.strptime(t["completed_at"][:16],"%Y-%m-%d %H:%M")
+                    tech_stats[tech]["resolution_times"].append((t2-t1).total_seconds()/3600)
+                except:
+                    pass
+        elif t["status"] == "قيد التنفيذ":
+            tech_stats[tech]["in_progress"] += 1
+        else:
+            tech_stats[tech]["new"] += 1
+        tech_stats[tech]["tickets"].append(t)
+
+    # ── Section 1: Summary header ──
+    ws5.column_dimensions["A"].width = 20
+    ws5.column_dimensions["B"].width = 14
+    ws5.column_dimensions["C"].width = 14
+    ws5.column_dimensions["D"].width = 14
+    ws5.column_dimensions["E"].width = 16
+    ws5.column_dimensions["F"].width = 16
+    ws5.column_dimensions["G"].width = 16
+
+    # Title
+    title_cell = ws5.cell(row=1, column=1, value="تقرير أداء الفنيين")
+    title_cell.font = Font(name="Arial", size=16, bold=True, color=WHITE)
+    title_cell.fill = fill(DARK_BLUE)
+    title_cell.alignment = center()
+    title_cell.border = border_all
+    ws5.merge_cells("A1:G1")
+    ws5.row_dimensions[1].height = 36
+
+    # Sub-title with date
+    date_cell = ws5.cell(row=2, column=1, value=f"تاريخ التصدير: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    date_cell.font = Font(name="Arial", size=10, color=WHITE)
+    date_cell.fill = fill(GRAY_HDR)
+    date_cell.alignment = center()
+    date_cell.border = border_all
+    ws5.merge_cells("A2:G2")
+    ws5.row_dimensions[2].height = 22
+
+    # ── Section 2: Summary table per tech ──
+    summary_headers = ["اسم الفني","إجمالي البلاغات","مكتمل","قيد التنفيذ","جديد","نسبة الإنجاز","متوسط وقت الحل (ساعة)"]
+    ws5.row_dimensions[4].height = 28
+    for col, hdr in enumerate(summary_headers, 1):
+        cell = ws5.cell(row=4, column=col, value=hdr)
+        cell.font = hdr_font(sz=11)
+        cell.fill = fill(GRAY_HDR)
+        cell.alignment = center()
+        cell.border = border_all
+
+    row_idx = 5
+    for tech, stats in sorted(tech_stats.items(), key=lambda x: -x[1]["completed"]):
+        bg = GRAY_ROW if row_idx % 2 == 0 else WHITE
+        ws5.row_dimensions[row_idx].height = 22
+        total_t = stats["total"]
+        comp_t  = stats["completed"]
+        rate    = round(comp_t / total_t * 100, 1) if total_t else 0
+        times   = stats["resolution_times"]
+        avg_t   = round(sum(times)/len(times), 1) if times else "—"
+
+        row_vals = [tech, total_t, comp_t, stats["in_progress"], stats["new"],
+                    f"{rate}%", avg_t]
+        for col, val in enumerate(row_vals, 1):
+            cell = ws5.cell(row=row_idx, column=col, value=val)
+            cell.border = border_all
+            cell.alignment = center()
+            if col == 1:
+                cell.font = Font(name="Arial", size=10, bold=True, color=DARK_BLUE)
+                cell.fill = fill(LIGHT_BLUE)
+            elif col == 3:
+                cell.font = Font(name="Arial", size=10, bold=True, color=GREEN)
+                cell.fill = fill(LIGHT_GREEN if comp_t > 0 else bg)
+            elif col == 4:
+                cell.font = Font(name="Arial", size=10, bold=True, color=ORANGE)
+                cell.fill = fill(LIGHT_ORANGE if stats["in_progress"] > 0 else bg)
+            elif col == 5:
+                cell.font = Font(name="Arial", size=10, bold=True, color=RED)
+                cell.fill = fill(LIGHT_RED if stats["new"] > 0 else bg)
+            elif col == 6:
+                rate_val = float(str(val).replace("%","")) if val != "—" else 0
+                fg_color = GREEN if rate_val >= 80 else (ORANGE if rate_val >= 50 else RED)
+                cell.font = Font(name="Arial", size=10, bold=True, color=fg_color)
+                cell.fill = fill(bg)
+            else:
+                cell.font = cell_font()
+                cell.fill = fill(bg)
+        row_idx += 1
+
+    # ── Section 3: Detailed tickets per tech ──
+    row_idx += 2  # blank separator
+
+    for tech, stats in sorted(tech_stats.items(), key=lambda x: x[0]):
+        # Tech name header
+        tech_hdr_cell = ws5.cell(row=row_idx, column=1, value=f"بلاغات الفني: {tech}")
+        tech_hdr_cell.font = Font(name="Arial", size=12, bold=True, color=WHITE)
+        tech_hdr_cell.fill = fill(MID_BLUE)
+        tech_hdr_cell.alignment = center()
+        tech_hdr_cell.border = border_all
+        ws5.merge_cells(f"A{row_idx}:G{row_idx}")
+        ws5.row_dimensions[row_idx].height = 26
+        row_idx += 1
+
+        # Column headers for tickets
+        detail_headers = ["رقم البلاغ","الموظف","القسم","نوع المشكلة","الأولوية","الحالة","الحل المُطبَّق"]
+        for col, hdr in enumerate(detail_headers, 1):
+            cell = ws5.cell(row=row_idx, column=col, value=hdr)
+            cell.font = hdr_font(sz=10)
+            cell.fill = fill(GRAY_HDR)
+            cell.alignment = center()
+            cell.border = border_all
+        ws5.row_dimensions[row_idx].height = 22
+        row_idx += 1
+
+        # Ticket rows
+        for t in stats["tickets"]:
+            bg = GRAY_ROW if row_idx % 2 == 0 else WHITE
+            ws5.row_dimensions[row_idx].height = 20
+            status = t.get("status","جديد")
+            pri    = t.get("priority","عادي")
+            solution_val = t.get("solution","") or "—"
+            row_vals = [
+                t["ticket_no"], t["name"], t["dept"], t["issue"],
+                pri, status, solution_val
+            ]
+            for col, val in enumerate(row_vals, 1):
+                cell = ws5.cell(row=row_idx, column=col, value=val)
+                cell.border = border_all
+                cell.alignment = center() if col in (1,5,6) else right()
+                if col == 5:
+                    cell.font = Font(name="Arial",size=10,bold=True,color=PRI_COLOR.get(pri,MID_BLUE))
+                    cell.fill = fill(bg)
+                elif col == 6:
+                    cell.font = Font(name="Arial",size=10,bold=True,color=STATUS_COLOR.get(status,TEXT_DARK))
+                    cell.fill = fill(STATUS_BG.get(status,bg))
+                elif col == 7:
+                    has_sol = val and val != "—"
+                    cell.font = Font(name="Arial",size=10,bold=has_sol,color=GREEN if has_sol else TEXT_DARK)
+                    cell.fill = fill(LIGHT_GREEN if has_sol else bg)
+                else:
+                    cell.font = cell_font()
+                    cell.fill = fill(bg)
+            row_idx += 1
+
+        row_idx += 2  # blank separator between techs
+
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     fname = f"AMP_Support_Export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -619,7 +800,7 @@ def api_export_pptx():
 
     def add_rect(slide, l, t, w, h, fill_color=None, line_color=None, lw=Pt(0)):
         from pptx.util import Emu
-        shape = slide.shapes.add_shape(1, l, t, w, h)  # MSO_SHAPE_TYPE.RECTANGLE=1
+        shape = slide.shapes.add_shape(1, l, t, w, h)
         if fill_color:
             shape.fill.solid(); shape.fill.fore_color.rgb=fill_color
         else:
@@ -648,17 +829,14 @@ def api_export_pptx():
     # ═══════════════════
     s1 = prs.slides.add_slide(blank)
     slide_bg(s1, C_DARK)
-    # accent stripe
     add_rect(s1, Inches(0), Inches(0), Inches(0.18), Inches(7.5), C_BLUE)
     add_rect(s1, Inches(0.18), Inches(0), Inches(0.06), Inches(7.5), C_GREEN)
-    # title
     add_text(s1,"نظام الدعم الفني · AMP مصراتة",Inches(0.5),Inches(1.8),Inches(12),Inches(1.4),
              size=40,bold=True,color=C_WHITE,align=PP_ALIGN.CENTER)
     add_text(s1,"تقرير شامل للبلاغات والعمليات",Inches(0.5),Inches(3.1),Inches(12),Inches(0.8),
              size=22,color=RGBColor(0xBF,0xDB,0xFF),align=PP_ALIGN.CENTER)
     add_text(s1,f"تاريخ التصدير: {datetime.now().strftime('%Y-%m-%d')}",Inches(0.5),Inches(4.0),Inches(12),Inches(0.6),
              size=16,color=C_GRAY,align=PP_ALIGN.CENTER)
-    # bottom bar
     add_rect(s1,Inches(0),Inches(6.8),Inches(13.33),Inches(0.7),RGBColor(0x0F,0x17,0x2A))
     add_text(s1,"Al Madina Properties · Misrata",Inches(0.5),Inches(6.82),Inches(12),Inches(0.5),
              size=13,color=C_GRAY,align=PP_ALIGN.CENTER,italic=True)
@@ -690,14 +868,13 @@ def api_export_pptx():
         add_text(s2, label, x, Inches(3.3), cw, Inches(0.6),
                  size=16, color=C_TEXT, align=PP_ALIGN.CENTER)
 
-    # Rate bar
     add_rect(s2,Inches(0.5),Inches(4.4),Inches(12.33),Inches(0.7),C_WHITE)
     add_rect(s2,Inches(0.5),Inches(4.4),Inches(12.33*(rate/100)),Inches(0.7),C_GREEN)
     add_text(s2,f"نسبة الإنجاز: {rate}%",Inches(0.5),Inches(5.2),Inches(12),Inches(0.5),
              size=16,bold=True,color=C_TEXT,align=PP_ALIGN.CENTER)
 
     # ═══════════════════
-    # SLIDE 3 – By Dept (table)
+    # SLIDE 3 – By Dept
     # ═══════════════════
     s3 = prs.slides.add_slide(blank)
     slide_bg(s3, C_LIGHT)
@@ -707,7 +884,6 @@ def api_export_pptx():
              size=28,bold=True,color=C_WHITE,align=PP_ALIGN.CENTER)
 
     sorted_depts = sorted(dept_map.items(),key=lambda x:-x[1])
-    # Bar chart via table-like shapes
     max_v = max(v for _,v in sorted_depts) if sorted_depts else 1
     bar_area_w = Inches(8); bar_area_h = Inches(0.45)
     left_label = Inches(0.5); bar_left = Inches(3.5); val_left = Inches(12.0)
@@ -767,7 +943,7 @@ def api_export_pptx():
         add_text(s5,str(cnt),val_left,y,Inches(0.8),bar_area_h,size=14,bold=True,color=C_GREEN,align=PP_ALIGN.RIGHT)
 
     # ═══════════════════
-    # SLIDE 6 – Recent Tickets table
+    # SLIDE 6 – Recent Tickets
     # ═══════════════════
     s6 = prs.slides.add_slide(blank)
     slide_bg(s6, C_LIGHT)
@@ -780,7 +956,6 @@ def api_export_pptx():
     cols=[("رقم البلاغ",Inches(1.2)),("الاسم",Inches(2.5)),("المشكلة",Inches(2.5)),("الأولوية",Inches(1.3)),("الحالة",Inches(1.5)),("الفني",Inches(1.8))]
     x_pos=[Inches(0.3)]
     for _,w in cols[:-1]: x_pos.append(x_pos[-1]+w+Inches(0.05))
-    # header
     for (lbl,w),x in zip(cols,x_pos):
         add_rect(s6,x,Inches(1.35),w,Inches(0.38),C_BLUE)
         add_text(s6,lbl,x,Inches(1.35),w,Inches(0.38),size=11,bold=True,color=C_WHITE,align=PP_ALIGN.CENTER)
