@@ -25,12 +25,144 @@
   --sidebar-w:248px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-size:14px}
+html,body{height:100%;font-size:14px;overflow:hidden}
 body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
 input,select,textarea,button{font-family:inherit}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px}
+
+/* ═══════════════════════════════════════════ TRANSITION SYSTEM */
+/*
+  الجذر الذي يحتوي كل الشاشات
+  – يسمح لنا بالتنقل بين الشاشات بدون أي وميض
+*/
+#root{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
+}
+
+/* كل شاشة رئيسية */
+.screen{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  will-change:transform,opacity;
+  /* الحالة الافتراضية: مخفية خارج الشاشة */
+  pointer-events:none;
+}
+
+/* الشاشة النشطة */
+.screen.active{
+  pointer-events:all;
+}
+
+/* ── شاشة البلاغ (public) تدخل من اليمين / تخرج يساراً ── */
+#screenPublic{
+  transform:translateX(0);
+  opacity:1;
+  transition:transform .55s cubic-bezier(.77,0,.175,1), opacity .45s ease;
+}
+#screenPublic.slide-out-left{
+  transform:translateX(-100%);
+  opacity:0;
+  transition:transform .55s cubic-bezier(.77,0,.175,1), opacity .35s ease;
+}
+#screenPublic.hidden{
+  transform:translateX(-110%);
+  opacity:0;
+  transition:none;
+}
+
+/* ── شاشة التطبيق (app) تدخل من اليسار ── */
+#screenApp{
+  transform:translateX(100%);
+  opacity:0;
+  transition:transform .55s cubic-bezier(.77,0,.175,1), opacity .45s ease;
+}
+#screenApp.slide-in-right{
+  transform:translateX(0);
+  opacity:1;
+}
+#screenApp.active-state{
+  transform:translateX(0);
+  opacity:1;
+  transition:none;
+}
+
+/* عند الخروج: App تخرج يميناً وPublic تعود */
+#screenApp.slide-out-right{
+  transform:translateX(100%);
+  opacity:0;
+  transition:transform .5s cubic-bezier(.77,0,.175,1), opacity .35s ease;
+}
+#screenPublic.slide-in-left{
+  transform:translateX(0);
+  opacity:1;
+}
+
+/* طبقة التعتيم خلال الانتقال */
+#transitionOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.0);
+  z-index:9000;
+  pointer-events:none;
+  transition:background .3s ease;
+}
+#transitionOverlay.dim{
+  background:rgba(0,0,0,.35);
+  pointer-events:all;
+}
+
+/* ── أيقونة التحميل أثناء الانتقال ── */
+#loginTransitionLoader{
+  position:fixed;
+  inset:0;
+  z-index:9500;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:18px;
+  background:rgba(10,12,16,.92);
+  backdrop-filter:blur(12px);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s ease;
+}
+#loginTransitionLoader.show{
+  opacity:1;
+  pointer-events:all;
+}
+.loader-logo{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+  animation:loaderPop .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes loaderPop{from{transform:scale(.7) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.loader-spinner{
+  width:44px;height:44px;
+  border:3.5px solid rgba(79,142,247,.2);
+  border-top-color:var(--blue);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+.loader-text{
+  font-size:14px;font-weight:600;color:var(--ink2);
+  animation:fadeIn .5s ease .2s both;
+}
+.loader-sub{
+  font-size:12px;color:var(--ink3);
+  animation:fadeIn .5s ease .35s both;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* ═══════════════════════════════════════════ LAYOUT */
 .app{display:flex;height:100vh;position:relative;overflow:hidden}
@@ -89,12 +221,8 @@ input,select,textarea,button{font-family:inherit}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
 /* ═══════════════════════════════════════════ PUBLIC LANDING PAGE */
-#viewPublic{
-  display:flex !important;
-  min-height:100%;
-}
 .public-page{
-  display:flex;width:100%;min-height:100vh;
+  display:flex;width:100%;height:100vh;
   background:var(--bg);
   background-image:
     radial-gradient(ellipse 70% 50% at 15% 90%,rgba(37,99,235,.13) 0%,transparent 60%),
@@ -111,8 +239,7 @@ input,select,textarea,button{font-family:inherit}
 }
 .public-brand::before{
   content:'';position:absolute;bottom:-80px;right:-80px;
-  width:320px;height:320px;
-  border-radius:50%;
+  width:320px;height:320px;border-radius:50%;
   background:radial-gradient(circle,rgba(37,99,235,.18) 0%,transparent 70%);
   pointer-events:none;
 }
@@ -140,7 +267,6 @@ input,select,textarea,button{font-family:inherit}
 .fi-blue{background:rgba(79,142,247,.12);color:var(--blue)}
 .fi-green{background:rgba(47,216,122,.12);color:var(--green)}
 .fi-orange{background:rgba(245,158,11,.12);color:var(--orange)}
-.fi-purple{background:rgba(139,92,246,.12);color:var(--purple)}
 .brand-feature-text{font-size:13px;color:var(--ink2);line-height:1.5}
 .brand-feature-text strong{display:block;color:var(--ink);font-size:13px;font-weight:600;margin-bottom:1px}
 .brand-bottom{position:relative;z-index:1}
@@ -179,8 +305,7 @@ input,select,textarea,button{font-family:inherit}
 .step-item{display:flex;align-items:center;gap:8px;flex:1;position:relative}
 .step-item:not(:last-child)::after{
   content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:calc(100% - 130px);height:1px;background:var(--border2);
-  margin-left:10px;
+  width:calc(100% - 130px);height:1px;background:var(--border2);margin-left:10px;
 }
 .step-item:not(:last-child).done::after{background:var(--blue)}
 .step-num{
@@ -262,8 +387,7 @@ select.inp option{background:var(--surface2)}
 /* ═══════════════════════════════════════════ SUCCESS STATE */
 .success-state{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:60px 30px;text-align:center;
-  animation:fadeUp .3s ease;
+  padding:60px 30px;text-align:center;animation:fadeUp .3s ease;
 }
 .success-icon-wrap{
   width:80px;height:80px;border-radius:50%;
@@ -299,7 +423,6 @@ select.inp option{background:var(--surface2)}
 .btn-lg{padding:13px 28px;font-size:14.5px;border-radius:var(--radius)}
 .btn-block{width:100%}
 .spinner{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
-@keyframes spin{to{transform:rotate(360deg)}}
 
 /* Form nav buttons */
 .form-nav{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border)}
@@ -502,246 +625,381 @@ tbody td{padding:12px 14px;font-size:13px;color:var(--ink);vertical-align:middle
 </head>
 <body>
 
-<!-- ════════════════════════════════════
-     PUBLIC PAGE — for all employees
-     (No login required)
-════════════════════════════════════ -->
-<div id="viewPublic" style="width:100%;min-height:100vh;">
-  <div class="public-page">
+<!-- ════════════════════ ROOT WRAPPER ════════════════════ -->
+<div id="root">
 
-    <!-- LEFT: Branding -->
-    <div class="public-brand">
-      <div class="brand-top">
-        <div class="brand-logo">
-          <img src="https://almadinamisurata.com/en/wp-content/uploads/sites/2/2022/09/AMP-LOGO-LTR.svg" alt="AMP">
-          <div class="brand-logo-sep"></div>
-          <div class="brand-logo-text">
-            <strong>نظام الدعم الفني</strong>
-            Al Madina Properties · مصراتة
-          </div>
-        </div>
-        <div class="brand-headline">
-          نقدّم لك<br><span>الدعم الفني</span><br>في أسرع وقت
-        </div>
-        <div class="brand-desc">
-          سجّل بلاغك من هنا وسيتولّى فريقنا التقني متابعة طلبك والتواصل معك في أقرب وقت ممكن.
-        </div>
-        <div class="brand-features">
-          <div class="brand-feature">
-            <div class="brand-feature-icon fi-blue"><i class="fas fa-bolt"></i></div>
-            <div class="brand-feature-text">
-              <strong>استجابة سريعة</strong>
-              يتم تعيين الفني خلال دقائق من تسجيل البلاغ
-            </div>
-          </div>
-          <div class="brand-feature">
-            <div class="brand-feature-icon fi-green"><i class="fas fa-shield-halved"></i></div>
-            <div class="brand-feature-text">
-              <strong>متابعة كاملة</strong>
-              تتبع حالة بلاغك بالرقم المرجعي
-            </div>
-          </div>
-          <div class="brand-feature">
-            <div class="brand-feature-icon fi-orange"><i class="fas fa-headset"></i></div>
-            <div class="brand-feature-text">
-              <strong>دعم متخصص</strong>
-              فريق فنيين معتمدين لجميع أنواع المشكلات
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="brand-bottom">
-        <div class="brand-divider"></div>
-        <button class="staff-login-trigger" onclick="openStaffLogin()">
-          <i class="fas fa-lock"></i>
-          <span>دخول موظفي الدعم الفني</span>
-          <i class="fas fa-arrow-left" style="margin-right:auto;font-size:11px;opacity:.5"></i>
-        </button>
-        <div class="brand-footer-text">
-          نظام الدعم الفني الداخلي لشركة المدينة للعقارات · مصراتة<br>
-          جميع الحقوق محفوظة © 2024 · AMP
-        </div>
-      </div>
+  <!-- طبقة التعتيم خلال الانتقال -->
+  <div id="transitionOverlay"></div>
+
+  <!-- شاشة التحميل / الانتقال -->
+  <div id="loginTransitionLoader">
+    <div class="loader-logo">
+      <img src="https://almadinamisurata.com/en/wp-content/uploads/sites/2/2022/09/AMP-LOGO-LTR.svg" alt="AMP" style="height:48px;filter:brightness(1.1);">
+      <div class="loader-spinner"></div>
+      <div class="loader-text" id="loaderMsg">جاري التحقق من بياناتك...</div>
+      <div class="loader-sub" id="loaderSub">نظام الدعم الفني · Al Madina Properties</div>
     </div>
+  </div>
 
-    <!-- RIGHT: Employee Ticket Form -->
-    <div class="public-form-panel">
-      <div class="form-panel-header">
-        <div class="form-panel-badge">
-          <i class="fas fa-headset"></i>
-          نظام الدعم الفني الداخلي
-        </div>
-        <div class="form-panel-title">تسجيل بلاغ دعم فني</div>
-        <div class="form-panel-sub">
-          أدخل بياناتك الوظيفية وصف المشكلة بدقة — الحقول المعلّمة بـ
-          <span style="color:var(--red);font-weight:700;">*</span> إلزامية
-        </div>
+  <!-- ════ SCREEN: PUBLIC ════ -->
+  <div id="screenPublic" class="screen active">
+    <div class="public-page">
 
-        <!-- Mobile: staff login link -->
-        <div style="margin-top:14px;display:none;" id="mobileLoginLink">
-          <button class="staff-login-trigger" onclick="openStaffLogin()" style="max-width:280px;">
+      <!-- LEFT: Branding -->
+      <div class="public-brand">
+        <div class="brand-top">
+          <div class="brand-logo">
+            <img src="https://almadinamisurata.com/en/wp-content/uploads/sites/2/2022/09/AMP-LOGO-LTR.svg" alt="AMP">
+            <div class="brand-logo-sep"></div>
+            <div class="brand-logo-text">
+              <strong>نظام الدعم الفني</strong>
+              Al Madina Properties · مصراتة
+            </div>
+          </div>
+          <div class="brand-headline">نقدّم لك<br><span>الدعم الفني</span><br>في أسرع وقت</div>
+          <div class="brand-desc">سجّل بلاغك من هنا وسيتولّى فريقنا التقني متابعة طلبك والتواصل معك في أقرب وقت ممكن.</div>
+          <div class="brand-features">
+            <div class="brand-feature">
+              <div class="brand-feature-icon fi-blue"><i class="fas fa-bolt"></i></div>
+              <div class="brand-feature-text"><strong>استجابة سريعة</strong>يتم تعيين الفني خلال دقائق من تسجيل البلاغ</div>
+            </div>
+            <div class="brand-feature">
+              <div class="brand-feature-icon fi-green"><i class="fas fa-shield-halved"></i></div>
+              <div class="brand-feature-text"><strong>متابعة كاملة</strong>تتبع حالة بلاغك بالرقم المرجعي</div>
+            </div>
+            <div class="brand-feature">
+              <div class="brand-feature-icon fi-orange"><i class="fas fa-headset"></i></div>
+              <div class="brand-feature-text"><strong>دعم متخصص</strong>فريق فنيين معتمدين لجميع أنواع المشكلات</div>
+            </div>
+          </div>
+        </div>
+        <div class="brand-bottom">
+          <div class="brand-divider"></div>
+          <button class="staff-login-trigger" onclick="openStaffLogin()">
             <i class="fas fa-lock"></i>
             <span>دخول موظفي الدعم الفني</span>
+            <i class="fas fa-arrow-left" style="margin-right:auto;font-size:11px;opacity:.5"></i>
+          </button>
+          <div class="brand-footer-text">نظام الدعم الفني الداخلي لشركة المدينة للعقارات · مصراتة<br>جميع الحقوق محفوظة © 2024 · AMP</div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Employee Ticket Form -->
+      <div class="public-form-panel">
+        <div class="form-panel-header">
+          <div class="form-panel-badge"><i class="fas fa-headset"></i>نظام الدعم الفني الداخلي</div>
+          <div class="form-panel-title">تسجيل بلاغ دعم فني</div>
+          <div class="form-panel-sub">أدخل بياناتك الوظيفية وصف المشكلة بدقة — الحقول المعلّمة بـ <span style="color:var(--red);font-weight:700;">*</span> إلزامية</div>
+          <div style="margin-top:14px;display:none;" id="mobileLoginLink">
+            <button class="staff-login-trigger" onclick="openStaffLogin()" style="max-width:280px;">
+              <i class="fas fa-lock"></i><span>دخول موظفي الدعم الفني</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Steps bar -->
+        <div class="steps-bar" id="stepsBar">
+          <div class="step-item active" id="step1El"><div class="step-num" id="stepNum1">1</div><div class="step-label">بياناتك</div></div>
+          <div class="step-item" id="step2El"><div class="step-num" id="stepNum2">2</div><div class="step-label">المشكلة</div></div>
+          <div class="step-item" id="step3El"><div class="step-num" id="stepNum3">3</div><div class="step-label">مراجعة وإرسال</div></div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="form-section active" id="formStep1">
+          <div class="section-title"><i class="fas fa-user-circle"></i> البيانات الشخصية والوظيفية</div>
+          <div class="form-grid">
+            <div class="field span-2">
+              <label><i class="fas fa-user"></i> الاسم الكامل <span class="req">*</span></label>
+              <input id="u_name" class="inp" placeholder="مثال: أحمد محمد الأمين" autocomplete="name">
+              <span class="field-hint" id="fh_name"></span>
+            </div>
+            <div class="field">
+              <label><i class="fas fa-building"></i> القسم <span class="req">*</span></label>
+              <select id="u_dept" class="inp"><option value="">-- اختر القسم --</option></select>
+              <span class="field-hint" id="fh_dept"></span>
+            </div>
+            <div class="field">
+              <label><i class="fas fa-envelope"></i> البريد الإلكتروني <span class="req">*</span></label>
+              <div class="email-wrap">
+                <input id="u_email_name" class="inp" placeholder="اسم البريد">
+                <select id="u_email_domain" class="inp">
+                  <option value="@amh.ly">@amh.ly</option>
+                  <option value="@amp.ly">@amp.ly</option>
+                </select>
+              </div>
+              <span class="field-hint" id="fh_email"></span>
+            </div>
+            <div class="field">
+              <label><i class="fas fa-phone"></i> رقم الواتساب <span class="req">*</span></label>
+              <div class="phone-wrap">
+                <input id="u_phone" class="inp" type="tel" placeholder="912345678" maxlength="9" inputmode="numeric">
+                <div class="phone-prefix"><span style="font-size:10px;opacity:.6">🇱🇾</span> +218</div>
+              </div>
+              <span class="field-hint" id="fh_phone"></span>
+            </div>
+          </div>
+          <div class="form-nav">
+            <div></div>
+            <button class="btn btn-primary btn-lg" id="nextToStep2Btn" onclick="goStep(2)" disabled>التالي <i class="fas fa-arrow-left"></i></button>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="form-section" id="formStep2">
+          <div class="section-title"><i class="fas fa-triangle-exclamation"></i> تفاصيل المشكلة التقنية</div>
+          <div class="form-grid">
+            <div class="field span-2">
+              <label><i class="fas fa-tag"></i> نوع المشكلة <span class="req">*</span></label>
+              <select id="u_issue" class="inp"><option value="">-- اختر نوع المشكلة --</option></select>
+              <span class="field-hint" id="fh_issue"></span>
+            </div>
+            <div class="field span-2">
+              <label><i class="fas fa-signal"></i> درجة الأولوية</label>
+              <div class="priority-tabs">
+                <button class="priority-tab sel-عادي" data-pri="عادي" onclick="setPriority('عادي')"><i class="fas fa-circle-dot"></i> عادي</button>
+                <button class="priority-tab" data-pri="عاجل" onclick="setPriority('عاجل')"><i class="fas fa-bolt"></i> عاجل</button>
+                <button class="priority-tab" data-pri="حرج" onclick="setPriority('حرج')"><i class="fas fa-fire"></i> حرج</button>
+              </div>
+              <span class="field-hint" style="margin-top:4px;color:var(--ink3);"><i class="fas fa-info-circle"></i> اختر "حرج" فقط إذا كانت المشكلة تؤثر على سير العمل بالكامل</span>
+            </div>
+            <div class="field span-2">
+              <label><i class="fas fa-align-right"></i> وصف المشكلة بالتفصيل <span class="req">*</span></label>
+              <textarea id="u_desc" class="inp" placeholder="صف المشكلة بدقة: متى بدأت، ما الجهاز أو البرنامج المتأثر..." maxlength="1000"></textarea>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+                <span class="field-hint" id="fh_desc"></span>
+                <span class="char-count" id="descCounter">0 / 1000</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-nav">
+            <button class="btn btn-ghost btn-lg" onclick="goStep(1)"><i class="fas fa-arrow-right"></i> السابق</button>
+            <button class="btn btn-primary btn-lg" id="nextToStep3Btn" onclick="goStep(3)" disabled>مراجعة <i class="fas fa-arrow-left"></i></button>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="form-section" id="formStep3">
+          <div class="section-title"><i class="fas fa-clipboard-check"></i> مراجعة البيانات قبل الإرسال</div>
+          <div id="reviewBox" style="margin-bottom:24px;"></div>
+          <div style="background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.18);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:22px;display:flex;align-items:flex-start;gap:10px;">
+            <i class="fas fa-circle-info" style="color:var(--blue);margin-top:2px;flex-shrink:0;"></i>
+            <div style="font-size:12.5px;color:var(--ink2);line-height:1.7;">بعد الإرسال ستحصل على <strong style="color:var(--ink);">رقم مرجعي</strong> خاص ببلاغك.</div>
+          </div>
+          <div class="form-nav">
+            <button class="btn btn-ghost btn-lg" onclick="goStep(2)"><i class="fas fa-arrow-right"></i> تعديل</button>
+            <button class="btn btn-success btn-lg" id="submitBtn" onclick="submitTicket()">
+              <span class="spinner" id="submitSpinner"></span>
+              <span id="submitText"><i class="fas fa-paper-plane"></i> إرسال البلاغ</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SUCCESS -->
+        <div class="form-section" id="formSuccess">
+          <div class="success-state">
+            <div class="success-icon-wrap"><i class="fas fa-check"></i></div>
+            <div class="success-title">تم إرسال بلاغك بنجاح!</div>
+            <div class="success-ticket-no" id="successTicketNo">T-000</div>
+            <div class="success-desc">احتفظ بهذا الرقم المرجعي لمتابعة حالة بلاغك.<br>سيتواصل معك الفني المعيّن في أقرب وقت.</div>
+            <button class="btn btn-outline btn-lg" onclick="newTicket()" style="margin-top:30px;"><i class="fas fa-plus"></i> تسجيل بلاغ جديد</button>
+          </div>
+        </div>
+
+      </div><!-- /public-form-panel -->
+    </div><!-- /public-page -->
+  </div><!-- /screenPublic -->
+
+  <!-- ════ SCREEN: APP (Staff) ════ -->
+  <div id="screenApp" class="screen">
+    <div class="app" id="appShell">
+      <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+      <!-- Sidebar -->
+      <nav class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+          <img src="https://almadinamisurata.com/en/wp-content/uploads/sites/2/2022/09/AMP-LOGO-LTR.svg" alt="AMP">
+          <div class="sidebar-logo-text"><strong>AMP Support</strong>نظام الدعم الفني</div>
+        </div>
+        <div class="sidebar-nav">
+          <div class="nav-section">عام</div>
+          <button class="nav-item" onclick="showView('viewAdmin');loadAdmin();closeSidebar()" id="navAdmin" style="display:none">
+            <i class="fas fa-table-list"></i> إدارة البلاغات
+            <span class="nav-badge" id="navBadgeNew">0</span>
+          </button>
+          <button class="nav-item" id="navTech" style="display:none" onclick="showView('viewTech');loadTech();closeSidebar()">
+            <i class="fas fa-wrench"></i> مهامي
+            <span class="nav-badge" id="navBadgeTech" style="display:none">0</span>
+          </button>
+          <button class="nav-item" id="navDash" style="display:none" onclick="showView('viewDash');loadDashboard();closeSidebar()">
+            <i class="fas fa-chart-line"></i> التحليلات
+          </button>
+          <div class="nav-section" id="navSectionMgmt" style="display:none;">الإعدادات</div>
+          <button class="nav-item" id="navUsers" style="display:none" onclick="showView('viewUsers');loadUsers();closeSidebar()">
+            <i class="fas fa-users-gear"></i> إدارة المستخدمين
+          </button>
+          <button class="nav-item" id="navSettings" style="display:none" onclick="showView('viewSettings');loadSettings();closeSidebar()">
+            <i class="fas fa-sliders"></i> الأقسام والمشكلات
           </button>
         </div>
-      </div>
-
-      <!-- Steps bar -->
-      <div class="steps-bar" id="stepsBar">
-        <div class="step-item active" id="step1El">
-          <div class="step-num" id="stepNum1">1</div>
-          <div class="step-label">بياناتك</div>
-        </div>
-        <div class="step-item" id="step2El">
-          <div class="step-num" id="stepNum2">2</div>
-          <div class="step-label">المشكلة</div>
-        </div>
-        <div class="step-item" id="step3El">
-          <div class="step-num" id="stepNum3">3</div>
-          <div class="step-label">مراجعة وإرسال</div>
-        </div>
-      </div>
-
-      <!-- STEP 1: Personal info -->
-      <div class="form-section active" id="formStep1">
-        <div class="section-title"><i class="fas fa-user-circle"></i> البيانات الشخصية والوظيفية</div>
-        <div class="form-grid">
-          <div class="field span-2">
-            <label><i class="fas fa-user"></i> الاسم الكامل <span class="req">*</span></label>
-            <input id="u_name" class="inp" placeholder="مثال: أحمد محمد الأمين" autocomplete="name">
-            <span class="field-hint" id="fh_name"></span>
+        <div class="sidebar-footer">
+          <div class="user-card" id="userCard">
+            <div class="user-avatar" id="userAvatarLetter">—</div>
+            <div class="user-info">
+              <div class="user-name" id="userDisplayName">—</div>
+              <div class="user-role" id="userDisplayRole">—</div>
+            </div>
+            <button class="btn-logout" title="تسجيل الخروج" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
           </div>
-          <div class="field">
-            <label><i class="fas fa-building"></i> القسم <span class="req">*</span></label>
-            <select id="u_dept" class="inp"><option value="">-- اختر القسم --</option></select>
-            <span class="field-hint" id="fh_dept"></span>
+        </div>
+      </nav>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="topbar">
+          <button class="hamburger" onclick="openSidebar()"><i class="fas fa-bars"></i></button>
+          <div class="topbar-title" id="topbarTitle">نظام الدعم الفني</div>
+          <div class="topbar-right">
+            <span style="font-size:11px;color:var(--ink3);" id="topbarTime"></span>
           </div>
-          <div class="field">
-            <label><i class="fas fa-envelope"></i> البريد الإلكتروني <span class="req">*</span></label>
-            <div class="email-wrap">
-              <input id="u_email_name" class="inp" placeholder="اسم البريد">
-              <select id="u_email_domain" class="inp">
-                <option value="@amh.ly">@amh.ly</option>
-                <option value="@amp.ly">@amp.ly</option>
+        </div>
+
+        <div class="page-content">
+
+          <!-- ══ VIEW: ADMIN ══ -->
+          <div class="view" id="viewAdmin">
+            <div class="page-header">
+              <div><h1>إدارة البلاغات</h1><p>تتبع وتعيين جميع البلاغات الواردة</p></div>
+              <div class="page-header-actions">
+                <div class="export-group">
+                  <button class="btn btn-excel" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                  <button class="btn btn-pptx" onclick="exportPptx()"><i class="fas fa-file-powerpoint"></i> PowerPoint</button>
+                </div>
+                <button class="btn btn-outline" onclick="loadAdmin()"><i class="fas fa-rotate-right"></i> تحديث</button>
+              </div>
+            </div>
+            <div class="toolbar">
+              <div class="search-box"><i class="fas fa-search"></i><input id="adminSearch" placeholder="بحث بالاسم أو رقم البلاغ..." oninput="filterAdminTable()"></div>
+              <select class="filter-select" id="adminStatusFilter" onchange="filterAdminTable()">
+                <option value="">جميع الحالات</option><option value="جديد">جديد</option>
+                <option value="قيد التنفيذ">قيد التنفيذ</option><option value="مكتمل">مكتمل</option>
+              </select>
+              <select class="filter-select" id="adminPriFilter" onchange="filterAdminTable()">
+                <option value="">كل الأولويات</option><option value="عادي">عادي</option>
+                <option value="عاجل">عاجل</option><option value="حرج">حرج</option>
               </select>
             </div>
-            <span class="field-hint" id="fh_email"></span>
-          </div>
-          <div class="field">
-            <label><i class="fas fa-phone"></i> رقم الواتساب <span class="req">*</span></label>
-            <div class="phone-wrap">
-              <input id="u_phone" class="inp" type="tel" placeholder="912345678" maxlength="9" inputmode="numeric">
-              <div class="phone-prefix"><span style="font-size:10px;opacity:.6">🇱🇾</span> +218</div>
-            </div>
-            <span class="field-hint" id="fh_phone"></span>
-          </div>
-        </div>
-        <div class="form-nav">
-          <div></div>
-          <button class="btn btn-primary btn-lg" id="nextToStep2Btn" onclick="goStep(2)" disabled>
-            التالي <i class="fas fa-arrow-left"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- STEP 2: Problem details -->
-      <div class="form-section" id="formStep2">
-        <div class="section-title"><i class="fas fa-triangle-exclamation"></i> تفاصيل المشكلة التقنية</div>
-        <div class="form-grid">
-          <div class="field span-2">
-            <label><i class="fas fa-tag"></i> نوع المشكلة <span class="req">*</span></label>
-            <select id="u_issue" class="inp"><option value="">-- اختر نوع المشكلة --</option></select>
-            <span class="field-hint" id="fh_issue"></span>
-          </div>
-          <div class="field span-2">
-            <label><i class="fas fa-signal"></i> درجة الأولوية</label>
-            <div class="priority-tabs">
-              <button class="priority-tab sel-عادي" data-pri="عادي" onclick="setPriority('عادي')">
-                <i class="fas fa-circle-dot"></i> عادي
-              </button>
-              <button class="priority-tab" data-pri="عاجل" onclick="setPriority('عاجل')">
-                <i class="fas fa-bolt"></i> عاجل
-              </button>
-              <button class="priority-tab" data-pri="حرج" onclick="setPriority('حرج')">
-                <i class="fas fa-fire"></i> حرج
-              </button>
-            </div>
-            <span class="field-hint" style="margin-top:4px;color:var(--ink3);">
-              <i class="fas fa-info-circle"></i>
-              اختر "حرج" فقط إذا كانت المشكلة تؤثر على سير العمل بالكامل
-            </span>
-          </div>
-          <div class="field span-2">
-            <label><i class="fas fa-align-right"></i> وصف المشكلة بالتفصيل <span class="req">*</span></label>
-            <textarea id="u_desc" class="inp" placeholder="صف المشكلة بدقة: متى بدأت، ما الجهاز أو البرنامج المتأثر، وما الرسالة أو الخطأ الظاهر..." maxlength="1000"></textarea>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
-              <span class="field-hint" id="fh_desc"></span>
-              <span class="char-count" id="descCounter">0 / 1000</span>
+            <div class="card">
+              <div class="table-wrap">
+                <table id="adminTable">
+                  <thead><tr><th>رقم البلاغ</th><th>الموظف</th><th>المشكلة</th><th>الأولوية</th><th>الحالة</th><th>الفني المعيّن</th><th>تعيين فني</th><th></th></tr></thead>
+                  <tbody id="adminTbody"><tr><td colspan="8"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></div></td></tr></tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="form-nav">
-          <button class="btn btn-ghost btn-lg" onclick="goStep(1)">
-            <i class="fas fa-arrow-right"></i> السابق
-          </button>
-          <button class="btn btn-primary btn-lg" id="nextToStep3Btn" onclick="goStep(3)" disabled>
-            مراجعة <i class="fas fa-arrow-left"></i>
-          </button>
-        </div>
-      </div>
 
-      <!-- STEP 3: Review & Submit -->
-      <div class="form-section" id="formStep3">
-        <div class="section-title"><i class="fas fa-clipboard-check"></i> مراجعة البيانات قبل الإرسال</div>
-        <div id="reviewBox" style="margin-bottom:24px;">
-          <!-- filled dynamically -->
-        </div>
-        <div style="background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.18);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:22px;display:flex;align-items:flex-start;gap:10px;">
-          <i class="fas fa-circle-info" style="color:var(--blue);margin-top:2px;flex-shrink:0;"></i>
-          <div style="font-size:12.5px;color:var(--ink2);line-height:1.7;">
-            بعد الإرسال ستحصل على <strong style="color:var(--ink);">رقم مرجعي</strong> خاص ببلاغك يمكنك الاحتفاظ به لمتابعة الحالة.
-            سيتم التواصل معك عبر الواتساب أو البريد الإلكتروني المُدخل.
+          <!-- ══ VIEW: TECH ══ -->
+          <div class="view" id="viewTech">
+            <div class="page-header">
+              <div><h1>مهامي</h1><p>البلاغات المعيّنة لي</p></div>
+              <button class="btn btn-outline" onclick="loadTech()"><i class="fas fa-rotate-right"></i> تحديث</button>
+            </div>
+            <div style="margin-bottom:18px;">
+              <div style="font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:8px;"><i class="fas fa-inbox"></i> البلاغات الجديدة غير المعيّنة</div>
+              <div class="card">
+                <div class="table-wrap">
+                  <table id="unassignedTable">
+                    <thead><tr><th>رقم البلاغ</th><th>الموظف</th><th>المشكلة</th><th>الأولوية</th><th>التاريخ</th><th>تعيين</th></tr></thead>
+                    <tbody id="unassignedTbody"><tr><td colspan="6"><div class="empty-state"><i class="fas fa-check-circle"></i><p>لا توجد بلاغات غير معيّنة</p></div></td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:8px;"><i class="fas fa-wrench"></i> بلاغاتي المعيّنة</div>
+            <div class="card">
+              <div class="table-wrap">
+                <table id="techTable">
+                  <thead><tr><th>رقم البلاغ</th><th>الموظف</th><th>القسم</th><th>المشكلة</th><th>الأولوية</th><th>الحالة</th><th>إجراء</th><th></th></tr></thead>
+                  <tbody id="techTbody"><tr><td colspan="8"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></div></td></tr></tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="form-nav">
-          <button class="btn btn-ghost btn-lg" onclick="goStep(2)">
-            <i class="fas fa-arrow-right"></i> تعديل
-          </button>
-          <button class="btn btn-success btn-lg" id="submitBtn" onclick="submitTicket()">
-            <span class="spinner" id="submitSpinner"></span>
-            <span id="submitText"><i class="fas fa-paper-plane"></i> إرسال البلاغ</span>
-          </button>
-        </div>
-      </div>
 
-      <!-- SUCCESS STATE -->
-      <div class="form-section" id="formSuccess">
-        <div class="success-state">
-          <div class="success-icon-wrap"><i class="fas fa-check"></i></div>
-          <div class="success-title">تم إرسال بلاغك بنجاح!</div>
-          <div class="success-ticket-no" id="successTicketNo">T-000</div>
-          <div class="success-desc">
-            احتفظ بهذا الرقم المرجعي لمتابعة حالة بلاغك.<br>
-            سيتواصل معك الفني المعيّن عبر الواتساب أو البريد الإلكتروني في أقرب وقت.
+          <!-- ══ VIEW: DASHBOARD ══ -->
+          <div class="view" id="viewDash">
+            <div class="page-header">
+              <div><h1>التحليلات والإحصائيات</h1><p>نظرة شاملة على أداء نظام الدعم الفني</p></div>
+              <button class="btn btn-outline" onclick="loadDashboard()"><i class="fas fa-rotate-right"></i> تحديث</button>
+            </div>
+            <div class="stats-grid">
+              <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(79,142,247,.1);color:var(--blue);"><i class="fas fa-ticket"></i></div></div><div class="stat-value" id="d_total">—</div><div class="stat-label">إجمالي البلاغات</div></div>
+              <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(47,216,122,.1);color:var(--green);"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="d_done">—</div><div class="stat-label">مكتملة</div></div>
+              <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(245,158,11,.1);color:var(--orange);"><i class="fas fa-clock"></i></div></div><div class="stat-value" id="d_avg">—</div><div class="stat-label">متوسط وقت الإنجاز (س)</div></div>
+              <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(139,92,246,.1);color:var(--purple);"><i class="fas fa-chart-line"></i></div></div><div class="stat-value" id="d_rate">—</div><div class="stat-label">نسبة الإنجاز</div></div>
+            </div>
+            <div class="charts-grid">
+              <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> البلاغات حسب القسم</h4><canvas id="deptChart"></canvas></div>
+              <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> حسب نوع المشكلة</h4><canvas id="issueChart"></canvas></div>
+              <div class="chart-card"><h4><i class="fas fa-chart-line"></i> البلاغات اليومية</h4><canvas id="dailyChart"></canvas></div>
+              <div class="chart-card"><h4><i class="fas fa-users"></i> أداء الفنيين</h4><canvas id="techChart"></canvas></div>
+            </div>
+            <div style="margin-top:20px;">
+              <div style="font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:10px;"><i class="fas fa-history"></i> آخر النشاطات</div>
+              <div class="card"><div class="card-body"><div id="activityList"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div></div></div></div>
+            </div>
           </div>
-          <button class="btn btn-outline btn-lg" onclick="newTicket()" style="margin-top:30px;">
-            <i class="fas fa-plus"></i> تسجيل بلاغ جديد
-          </button>
-        </div>
-      </div>
 
-    </div><!-- /public-form-panel -->
-  </div><!-- /public-page -->
-</div>
+          <!-- ══ VIEW: USERS ══ -->
+          <div class="view" id="viewUsers">
+            <div class="page-header">
+              <div><h1>إدارة المستخدمين</h1><p>إضافة وتعديل حسابات الفنيين والمديرين</p></div>
+              <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fas fa-user-plus"></i> مستخدم جديد</button>
+            </div>
+            <div class="card">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>م</th><th>اسم المستخدم</th><th>الاسم الكامل</th><th>الدور</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                  <tbody id="usersTbody"><tr><td colspan="6"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></div></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ VIEW: SETTINGS ══ -->
+          <div class="view" id="viewSettings">
+            <div class="page-header"><div><h1>إدارة الأقسام والمشكلات</h1><p>تخصيص قوائم الأقسام وأنواع المشكلات</p></div></div>
+            <div class="mgmt-grid">
+              <div class="card">
+                <div class="card-header"><div class="card-icon"><i class="fas fa-building"></i></div><div><h2>الأقسام</h2><p>إدارة قائمة الأقسام المتاحة</p></div></div>
+                <div class="card-body">
+                  <div id="deptsListEl"></div>
+                  <div class="mgmt-add-row"><input id="newDeptName" class="inp" placeholder="اسم القسم الجديد"><button class="btn btn-primary" onclick="addDept()"><i class="fas fa-plus"></i> إضافة</button></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header"><div class="card-icon" style="background:rgba(245,158,11,.1);color:var(--orange);"><i class="fas fa-triangle-exclamation"></i></div><div><h2>أنواع المشكلات</h2><p>إدارة قائمة أنواع المشكلات</p></div></div>
+                <div class="card-body">
+                  <div id="issuesListEl"></div>
+                  <div class="mgmt-add-row"><input id="newIssueName" class="inp" placeholder="نوع المشكلة الجديد"><button class="btn btn-primary" onclick="addIssueType()"><i class="fas fa-plus"></i> إضافة</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /page-content -->
+      </div><!-- /main -->
+    </div><!-- /app -->
+  </div><!-- /screenApp -->
+
+</div><!-- /root -->
 
 <!-- ════════════════════════════════════
      STAFF LOGIN PANEL (overlay)
 ════════════════════════════════════ -->
 <div class="staff-login-panel" id="staffLoginPanel">
   <div class="staff-login-box" style="position:relative;">
-    <button class="slb-close" onclick="closeStaffLogin()" title="إغلاق">
-      <i class="fas fa-times"></i>
-    </button>
+    <button class="slb-close" onclick="closeStaffLogin()" title="إغلاق"><i class="fas fa-times"></i></button>
     <div class="slb-header">
       <div class="slb-icon"><i class="fas fa-shield-halved"></i></div>
       <div class="slb-title">دخول الموظفين</div>
@@ -767,225 +1025,10 @@ tbody td{padding:12px 14px;font-size:13px;color:var(--ink);vertical-align:middle
   </div>
 </div>
 
-<!-- ════════════════════════════════════
-     APP SHELL — for logged-in staff
-════════════════════════════════════ -->
-<div class="app" id="appShell" style="display:none;">
-  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
-  <!-- Sidebar -->
-  <nav class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <img src="https://almadinamisurata.com/en/wp-content/uploads/sites/2/2022/09/AMP-LOGO-LTR.svg" alt="AMP">
-      <div class="sidebar-logo-text">
-        <strong>AMP Support</strong>
-        نظام الدعم الفني
-      </div>
-    </div>
-    <div class="sidebar-nav">
-      <div class="nav-section">عام</div>
-      <button class="nav-item" onclick="showView('viewAdmin');loadAdmin();closeSidebar()" id="navAdmin" style="display:none">
-        <i class="fas fa-table-list"></i> إدارة البلاغات
-        <span class="nav-badge" id="navBadgeNew">0</span>
-      </button>
-      <button class="nav-item" id="navTech" style="display:none" onclick="showView('viewTech');loadTech();closeSidebar()">
-        <i class="fas fa-wrench"></i> مهامي
-        <span class="nav-badge" id="navBadgeTech" style="display:none">0</span>
-      </button>
-      <button class="nav-item" id="navDash" style="display:none" onclick="showView('viewDash');loadDashboard();closeSidebar()">
-        <i class="fas fa-chart-line"></i> التحليلات
-      </button>
-      <div class="nav-section" id="navSectionMgmt" style="display:none;">الإعدادات</div>
-      <button class="nav-item" id="navUsers" style="display:none" onclick="showView('viewUsers');loadUsers();closeSidebar()">
-        <i class="fas fa-users-gear"></i> إدارة المستخدمين
-      </button>
-      <button class="nav-item" id="navSettings" style="display:none" onclick="showView('viewSettings');loadSettings();closeSidebar()">
-        <i class="fas fa-sliders"></i> الأقسام والمشكلات
-      </button>
-    </div>
-    <div class="sidebar-footer">
-      <div class="user-card" id="userCard">
-        <div class="user-avatar" id="userAvatarLetter">—</div>
-        <div class="user-info">
-          <div class="user-name" id="userDisplayName">—</div>
-          <div class="user-role" id="userDisplayRole">—</div>
-        </div>
-        <button class="btn-logout" title="تسجيل الخروج" onclick="logout()">
-          <i class="fas fa-sign-out-alt"></i>
-        </button>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Main -->
-  <div class="main">
-    <div class="topbar">
-      <button class="hamburger" onclick="openSidebar()"><i class="fas fa-bars"></i></button>
-      <div class="topbar-title" id="topbarTitle">نظام الدعم الفني</div>
-      <div class="topbar-right">
-        <span style="font-size:11px;color:var(--ink3);" id="topbarTime"></span>
-      </div>
-    </div>
-
-    <div class="page-content">
-
-      <!-- ══ VIEW: ADMIN ══ -->
-      <div class="view" id="viewAdmin">
-        <div class="page-header">
-          <div><h1>إدارة البلاغات</h1><p>تتبع وتعيين جميع البلاغات الواردة</p></div>
-          <div class="page-header-actions">
-            <div class="export-group">
-              <button class="btn btn-excel" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-              <button class="btn btn-pptx" onclick="exportPptx()"><i class="fas fa-file-powerpoint"></i> PowerPoint</button>
-            </div>
-            <button class="btn btn-outline" onclick="loadAdmin()"><i class="fas fa-rotate-right"></i> تحديث</button>
-          </div>
-        </div>
-        <div class="toolbar">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input id="adminSearch" placeholder="بحث بالاسم أو رقم البلاغ..." oninput="filterAdminTable()">
-          </div>
-          <select class="filter-select" id="adminStatusFilter" onchange="filterAdminTable()">
-            <option value="">جميع الحالات</option>
-            <option value="جديد">جديد</option>
-            <option value="قيد التنفيذ">قيد التنفيذ</option>
-            <option value="مكتمل">مكتمل</option>
-          </select>
-          <select class="filter-select" id="adminPriFilter" onchange="filterAdminTable()">
-            <option value="">كل الأولويات</option>
-            <option value="عادي">عادي</option>
-            <option value="عاجل">عاجل</option>
-            <option value="حرج">حرج</option>
-          </select>
-        </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table id="adminTable">
-              <thead><tr>
-                <th>رقم البلاغ</th><th>الموظف</th><th>المشكلة</th><th>الأولوية</th>
-                <th>الحالة</th><th>الفني المعيّن</th><th>تعيين فني</th><th></th>
-              </tr></thead>
-              <tbody id="adminTbody"><tr><td colspan="8"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></div></td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ VIEW: TECH ══ -->
-      <div class="view" id="viewTech">
-        <div class="page-header">
-          <div><h1>مهامي</h1><p>البلاغات المعيّنة لي — يمكنني أيضاً تعيين نفسي لأي بلاغ جديد</p></div>
-          <button class="btn btn-outline" onclick="loadTech()"><i class="fas fa-rotate-right"></i> تحديث</button>
-        </div>
-        <div style="margin-bottom:18px;">
-          <div style="font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:8px;"><i class="fas fa-inbox"></i> البلاغات الجديدة غير المعيّنة</div>
-          <div class="card">
-            <div class="table-wrap">
-              <table id="unassignedTable">
-                <thead><tr><th>رقم البلاغ</th><th>الموظف</th><th>المشكلة</th><th>الأولوية</th><th>التاريخ</th><th>تعيين</th></tr></thead>
-                <tbody id="unassignedTbody"><tr><td colspan="6"><div class="empty-state"><i class="fas fa-check-circle"></i><p>لا توجد بلاغات غير معيّنة</p></div></td></tr></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div style="font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:8px;"><i class="fas fa-wrench"></i> بلاغاتي المعيّنة</div>
-        <div class="card">
-          <div class="table-wrap">
-            <table id="techTable">
-              <thead><tr><th>رقم البلاغ</th><th>الموظف</th><th>القسم</th><th>المشكلة</th><th>الأولوية</th><th>الحالة</th><th>إجراء</th><th></th></tr></thead>
-              <tbody id="techTbody"><tr><td colspan="8"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></div></td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ VIEW: DASHBOARD ══ -->
-      <div class="view" id="viewDash">
-        <div class="page-header">
-          <div><h1>التحليلات والإحصائيات</h1><p>نظرة شاملة على أداء نظام الدعم الفني</p></div>
-          <button class="btn btn-outline" onclick="loadDashboard()"><i class="fas fa-rotate-right"></i> تحديث</button>
-        </div>
-        <div class="stats-grid">
-          <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(79,142,247,.1);color:var(--blue);"><i class="fas fa-ticket"></i></div></div><div class="stat-value" id="d_total">—</div><div class="stat-label">إجمالي البلاغات</div></div>
-          <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(47,216,122,.1);color:var(--green);"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="d_done">—</div><div class="stat-label">مكتملة</div></div>
-          <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(245,158,11,.1);color:var(--orange);"><i class="fas fa-clock"></i></div></div><div class="stat-value" id="d_avg">—</div><div class="stat-label">متوسط وقت الإنجاز (س)</div></div>
-          <div class="stat-card"><div class="stat-header"><div class="stat-icon" style="background:rgba(139,92,246,.1);color:var(--purple);"><i class="fas fa-chart-line"></i></div></div><div class="stat-value" id="d_rate">—</div><div class="stat-label">نسبة الإنجاز</div></div>
-        </div>
-        <div class="charts-grid">
-          <div class="chart-card"><h4><i class="fas fa-chart-bar"></i> البلاغات حسب القسم</h4><canvas id="deptChart"></canvas></div>
-          <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> حسب نوع المشكلة</h4><canvas id="issueChart"></canvas></div>
-          <div class="chart-card"><h4><i class="fas fa-chart-line"></i> البلاغات اليومية</h4><canvas id="dailyChart"></canvas></div>
-          <div class="chart-card"><h4><i class="fas fa-users"></i> أداء الفنيين</h4><canvas id="techChart"></canvas></div>
-        </div>
-        <div style="margin-top:20px;">
-          <div style="font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:10px;"><i class="fas fa-history"></i> آخر النشاطات</div>
-          <div class="card"><div class="card-body"><div id="activityList"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div></div></div></div>
-        </div>
-      </div>
-
-      <!-- ══ VIEW: USERS ══ -->
-      <div class="view" id="viewUsers">
-        <div class="page-header">
-          <div><h1>إدارة المستخدمين</h1><p>إضافة وتعديل حسابات الفنيين والمديرين</p></div>
-          <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fas fa-user-plus"></i> مستخدم جديد</button>
-        </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>م</th><th>اسم المستخدم</th><th>الاسم الكامل</th><th>الدور</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-              <tbody id="usersTbody"><tr><td colspan="6"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></div></td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ VIEW: SETTINGS ══ -->
-      <div class="view" id="viewSettings">
-        <div class="page-header">
-          <div><h1>إدارة الأقسام والمشكلات</h1><p>تخصيص قوائم الأقسام وأنواع المشكلات</p></div>
-        </div>
-        <div class="mgmt-grid">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-icon"><i class="fas fa-building"></i></div>
-              <div><h2>الأقسام</h2><p>إدارة قائمة الأقسام المتاحة</p></div>
-            </div>
-            <div class="card-body">
-              <div id="deptsListEl"></div>
-              <div class="mgmt-add-row">
-                <input id="newDeptName" class="inp" placeholder="اسم القسم الجديد">
-                <button class="btn btn-primary" onclick="addDept()"><i class="fas fa-plus"></i> إضافة</button>
-              </div>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-icon" style="background:rgba(245,158,11,.1);color:var(--orange);"><i class="fas fa-triangle-exclamation"></i></div>
-              <div><h2>أنواع المشكلات</h2><p>إدارة قائمة أنواع المشكلات</p></div>
-            </div>
-            <div class="card-body">
-              <div id="issuesListEl"></div>
-              <div class="mgmt-add-row">
-                <input id="newIssueName" class="inp" placeholder="نوع المشكلة الجديد">
-                <button class="btn btn-primary" onclick="addIssueType()"><i class="fas fa-plus"></i> إضافة</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /page-content -->
-  </div><!-- /main -->
-</div><!-- /appShell -->
-
 <!-- TICKET DETAIL MODAL -->
 <div class="modal-overlay" id="ticketModal">
   <div class="modal">
-    <div class="modal-header">
-      <h3 id="modalTitle">تفاصيل البلاغ</h3>
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('ticketModal')"><i class="fas fa-times"></i></button>
-    </div>
+    <div class="modal-header"><h3 id="modalTitle">تفاصيل البلاغ</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('ticketModal')"><i class="fas fa-times"></i></button></div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-footer" id="modalFooter"></div>
   </div>
@@ -997,10 +1040,7 @@ tbody td{padding:12px 14px;font-size:13px;color:var(--ink);vertical-align:middle
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:36px;height:36px;border-radius:10px;background:rgba(47,216,122,.15);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:17px;"><i class="fas fa-check-circle"></i></div>
-        <div>
-          <h3 style="color:var(--ink);">إتمام البلاغ</h3>
-          <div style="font-size:11px;color:var(--ink3);margin-top:2px;" id="completingTicketNo"></div>
-        </div>
+        <div><h3 style="color:var(--ink);">إتمام البلاغ</h3><div style="font-size:11px;color:var(--ink3);margin-top:2px;" id="completingTicketNo"></div></div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="closeModal('completeModal')"><i class="fas fa-times"></i></button>
     </div>
@@ -1011,7 +1051,7 @@ tbody td{padding:12px 14px;font-size:13px;color:var(--ink);vertical-align:middle
       </div>
       <div class="solution-section">
         <label><i class="fas fa-lightbulb"></i> الحل المُطبَّق <span style="color:var(--red);">*</span></label>
-        <textarea id="solutionInput" class="inp" placeholder="اكتب هنا الحل الذي طبّقته لحل هذه المشكلة..." oninput="onSolutionInput()"></textarea>
+        <textarea id="solutionInput" class="inp" placeholder="اكتب هنا الحل الذي طبّقته..." oninput="onSolutionInput()"></textarea>
         <div class="solution-required-hint" id="solutionRequiredHint"><i class="fas fa-exclamation-circle"></i> الرجاء كتابة الحل قبل إتمام البلاغ</div>
       </div>
     </div>
@@ -1025,31 +1065,13 @@ tbody td{padding:12px 14px;font-size:13px;color:var(--ink);vertical-align:middle
 <!-- ADD/EDIT USER MODAL -->
 <div class="modal-overlay" id="userModal">
   <div class="modal" style="max-width:460px;">
-    <div class="modal-header">
-      <h3 id="userModalTitle">مستخدم جديد</h3>
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('userModal')"><i class="fas fa-times"></i></button>
-    </div>
+    <div class="modal-header"><h3 id="userModalTitle">مستخدم جديد</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('userModal')"><i class="fas fa-times"></i></button></div>
     <div class="modal-body">
       <div style="display:flex;flex-direction:column;gap:14px;">
-        <div class="field">
-          <label><i class="fas fa-user"></i> اسم المستخدم <span class="req">*</span></label>
-          <input id="um_username" class="inp" placeholder="يجب أن يكون فريداً">
-        </div>
-        <div class="field">
-          <label><i class="fas fa-id-card"></i> الاسم الكامل</label>
-          <input id="um_fullname" class="inp" placeholder="الاسم الظاهر في النظام">
-        </div>
-        <div class="field">
-          <label><i class="fas fa-shield-halved"></i> الدور <span class="req">*</span></label>
-          <select id="um_role" class="inp">
-            <option value="tech">فني دعم</option>
-            <option value="admin">مدير نظام</option>
-          </select>
-        </div>
-        <div class="field">
-          <label><i class="fas fa-lock"></i> كلمة المرور <span class="req" id="um_pass_req">*</span></label>
-          <input id="um_password" class="inp" type="password" placeholder="اتركها فارغة للاحتفاظ بالحالية عند التعديل">
-        </div>
+        <div class="field"><label><i class="fas fa-user"></i> اسم المستخدم <span class="req">*</span></label><input id="um_username" class="inp" placeholder="يجب أن يكون فريداً"></div>
+        <div class="field"><label><i class="fas fa-id-card"></i> الاسم الكامل</label><input id="um_fullname" class="inp" placeholder="الاسم الظاهر في النظام"></div>
+        <div class="field"><label><i class="fas fa-shield-halved"></i> الدور <span class="req">*</span></label><select id="um_role" class="inp"><option value="tech">فني دعم</option><option value="admin">مدير نظام</option></select></div>
+        <div class="field"><label><i class="fas fa-lock"></i> كلمة المرور <span class="req" id="um_pass_req">*</span></label><input id="um_password" class="inp" type="password" placeholder="اتركها فارغة للاحتفاظ بالحالية عند التعديل"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1069,137 +1091,216 @@ let editingUserId=null;
 let completingTicket=null;
 let currentStep=1;
 
-// Validation state
 const fvStep1={name:false,dept:false,email:false,phone:false};
 const fvStep2={issue:false,desc:false};
 
+// ════════════════════════════════════════════════ TRANSITION ENGINE
+/**
+ * الانتقال من شاشة البلاغ إلى شاشة التطبيق
+ * 1. نظهر طبقة التحميل
+ * 2. نُشغّل الـ CSS animation للشاشتين
+ * 3. بعد اكتمال الـ animation نستدعي callback
+ */
+function transitionToApp(onReady) {
+  const overlay  = document.getElementById('transitionOverlay');
+  const loader   = document.getElementById('loginTransitionLoader');
+  const screenPub= document.getElementById('screenPublic');
+  const screenApp= document.getElementById('screenApp');
+
+  // ① إظهار loader
+  loader.classList.add('show');
+  overlay.classList.add('dim');
+  document.body.style.overflow='hidden';
+
+  // ② بعد 600ms (وقت كافٍ لإظهار loader): تشغيل الـ data
+  setTimeout(() => {
+    if (typeof onReady === 'function') onReady();
+  }, 650);
+
+  // ③ بعد 1100ms: نبدأ الانتقال المرئي
+  setTimeout(() => {
+    document.getElementById('loaderMsg').textContent = 'جاري تحميل لوحة التحكم...';
+
+    setTimeout(() => {
+      // إخفاء loader
+      loader.classList.remove('show');
+      overlay.classList.remove('dim');
+
+      // شاشة البلاغ تنزلق يساراً
+      screenPub.classList.add('active');
+      screenPub.classList.add('slide-out-left');
+
+      // مسح الـ inline styles التي قد تكون تركها logout() السابق
+      screenApp.style.transform = '';
+      screenApp.style.opacity   = '';
+
+      // شاشة التطبيق تدخل من اليمين
+      screenApp.classList.add('active');
+      screenApp.classList.add('slide-in-right');
+
+      // بعد اكتمال الـ animation: تنظيف الكلاسات
+      setTimeout(() => {
+        screenPub.classList.remove('active','slide-out-left');
+        screenPub.classList.add('hidden');
+        screenApp.classList.remove('slide-in-right');
+        screenApp.classList.add('active-state');
+        document.body.style.overflow='';
+      }, 600);
+
+    }, 400);
+  }, 1100);
+}
+
+/**
+ * الانتقال من شاشة التطبيق إلى شاشة البلاغ (logout)
+ */
+function transitionToPublic() {
+  const screenPub = document.getElementById('screenPublic');
+  const screenApp = document.getElementById('screenApp');
+
+  // screenApp تخرج يميناً
+  screenApp.classList.remove('active-state');
+  screenApp.classList.add('slide-out-right');
+
+  // screenPub تعود من اليسار
+  screenPub.classList.remove('hidden');
+  screenPub.classList.add('active','slide-in-left');
+
+  setTimeout(() => {
+    screenApp.classList.remove('active','slide-out-right');
+    screenApp.style.transform = 'translateX(100%)';
+    screenApp.style.opacity   = '0';
+    // لازم نعيد reset كامل للـ classes
+    screenApp.className = 'screen';
+
+    screenPub.classList.remove('slide-in-left');
+    screenPub.classList.add('active');
+    screenPub.style.transform = '';
+    screenPub.style.opacity   = '';
+    document.body.style.overflow='';
+  }, 550);
+}
+
 // ════════════════════════════════════════════════ INIT
-window.addEventListener('load', async ()=>{
-  updateClock(); setInterval(updateClock, 60000);
-  const res = await fetch('/api/lookups');
-  const d = await res.json();
-  S.depts = d.depts; S.issues = d.issues;
+window.addEventListener('load', async () => {
+  updateClock();
+  setInterval(updateClock, 60000);
+  const res  = await fetch('/api/lookups');
+  const d    = await res.json();
+  S.depts    = d.depts;
+  S.issues   = d.issues;
   const tres = await fetch('/api/techs');
-  S.techs = await tres.json();
-  fillSelect('u_dept', S.depts, '-- اختر القسم --');
+  S.techs    = await tres.json();
+  fillSelect('u_dept',  S.depts,  '-- اختر القسم --');
   fillSelect('u_issue', S.issues, '-- اختر نوع المشكلة --');
   attachFormListeners();
   attachLoginListeners();
-  // Show mobile login link on small screens
-  if(window.innerWidth <= 900){
-    document.getElementById('mobileLoginLink').style.display='block';
+  if (window.innerWidth <= 900) {
+    document.getElementById('mobileLoginLink').style.display = 'block';
   }
 });
 
-function updateClock(){
-  const now=new Date();
-  const el=document.getElementById('topbarTime');
-  if(el) el.textContent=now.toLocaleDateString('ar-LY',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+function updateClock() {
+  const el = document.getElementById('topbarTime');
+  if (el) el.textContent = new Date().toLocaleDateString('ar-LY', {weekday:'short',year:'numeric',month:'short',day:'numeric'});
 }
 
-function fillSelect(id,list,placeholder){
-  const el=document.getElementById(id);
-  if(!el) return;
-  el.innerHTML=`<option value="">${placeholder}</option>`;
-  list.forEach(v=>{const o=document.createElement('option');o.value=o.textContent=v;el.appendChild(o)});
+function fillSelect(id, list, placeholder) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<option value="">${placeholder}</option>`;
+  list.forEach(v => { const o = document.createElement('option'); o.value = o.textContent = v; el.appendChild(o); });
 }
 
 // ════════════════════════════════════════════════ STAFF LOGIN PANEL
-function openStaffLogin(){
+function openStaffLogin() {
   document.getElementById('staffLoginPanel').classList.add('open');
-  document.body.style.overflow='hidden';
-  setTimeout(()=>document.getElementById('l_user').focus(),250);
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('l_user').focus(), 250);
 }
-function closeStaffLogin(){
+function closeStaffLogin() {
   document.getElementById('staffLoginPanel').classList.remove('open');
-  document.body.style.overflow='';
-  document.getElementById('loginErr').textContent='';
+  document.body.style.overflow = '';
+  document.getElementById('loginErr').textContent = '';
 }
-// Close on backdrop click
-document.getElementById('staffLoginPanel').addEventListener('click',function(e){
-  if(e.target===this) closeStaffLogin();
+document.getElementById('staffLoginPanel').addEventListener('click', function(e) {
+  if (e.target === this) closeStaffLogin();
 });
 
-// ════════════════════════════════════════════════ SIDEBAR (mobile)
-function openSidebar(){
+// ════════════════════════════════════════════════ SIDEBAR
+function openSidebar() {
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('sidebarOverlay').classList.add('open');
-  document.body.style.overflow='hidden';
+  document.body.style.overflow = 'hidden';
 }
-function closeSidebar(){
+function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('open');
-  document.body.style.overflow='';
+  document.body.style.overflow = '';
 }
 
-// ════════════════════════════════════════════════ VIEWS (staff)
-function showView(id){
-  document.querySelectorAll('#appShell .view').forEach(v=>v.classList.remove('active'));
-  const el=document.getElementById(id);
-  if(el) el.classList.add('active');
-  const titles={viewAdmin:'إدارة البلاغات',viewTech:'مهامي',viewDash:'التحليلات',viewUsers:'إدارة المستخدمين',viewSettings:'إعدادات النظام'};
-  document.getElementById('topbarTitle').textContent=titles[id]||'';
-  // Update nav active state
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const navMap={viewAdmin:'navAdmin',viewTech:'navTech',viewDash:'navDash',viewUsers:'navUsers',viewSettings:'navSettings'};
-  const navEl=document.getElementById(navMap[id]);
-  if(navEl) navEl.classList.add('active');
+// ════════════════════════════════════════════════ VIEWS
+function showView(id) {
+  document.querySelectorAll('#screenApp .view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  const titles = {viewAdmin:'إدارة البلاغات',viewTech:'مهامي',viewDash:'التحليلات',viewUsers:'إدارة المستخدمين',viewSettings:'إعدادات النظام'};
+  document.getElementById('topbarTitle').textContent = titles[id] || '';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navMap = {viewAdmin:'navAdmin',viewTech:'navTech',viewDash:'navDash',viewUsers:'navUsers',viewSettings:'navSettings'};
+  const navEl  = document.getElementById(navMap[id]);
+  if (navEl) navEl.classList.add('active');
 }
 
 // ════════════════════════════════════════════════ TOAST
-function toast(msg,type='success'){
-  const icons={success:'fa-check-circle',error:'fa-circle-xmark',info:'fa-circle-info'};
-  const el=document.createElement('div');
-  el.className=`toast t-${type}`;
-  el.innerHTML=`<i class="fas ${icons[type]||icons.info} toast-icon"></i><span>${msg}</span>`;
+function toast(msg, type='success') {
+  const icons = {success:'fa-check-circle',error:'fa-circle-xmark',info:'fa-circle-info'};
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.innerHTML = `<i class="fas ${icons[type]||icons.info} toast-icon"></i><span>${msg}</span>`;
   document.getElementById('toastContainer').appendChild(el);
-  setTimeout(()=>el.remove(),3800);
+  setTimeout(() => el.remove(), 3800);
 }
 
 // ════════════════════════════════════════════════ MULTI-STEP FORM
-function goStep(step){
-  // Validate current before advancing
-  if(step > currentStep){
-    if(currentStep===1 && !Object.values(fvStep1).every(Boolean)){
-      toast('يرجى إكمال جميع الحقول المطلوبة','error'); return;
-    }
-    if(currentStep===2 && !Object.values(fvStep2).every(Boolean)){
-      toast('يرجى إكمال تفاصيل المشكلة','error'); return;
-    }
+function goStep(step) {
+  if (step > currentStep) {
+    if (currentStep===1 && !Object.values(fvStep1).every(Boolean)) { toast('يرجى إكمال جميع الحقول المطلوبة','error'); return; }
+    if (currentStep===2 && !Object.values(fvStep2).every(Boolean)) { toast('يرجى إكمال تفاصيل المشكلة','error'); return; }
   }
-  if(step===3) buildReviewBox();
-  currentStep=step;
-  document.querySelectorAll('.form-section').forEach(s=>s.classList.remove('active'));
-  const sections={1:'formStep1',2:'formStep2',3:'formStep3',4:'formSuccess'};
-  const el=document.getElementById(sections[step]);
-  if(el) el.classList.add('active');
+  if (step===3) buildReviewBox();
+  currentStep = step;
+  document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+  const sections = {1:'formStep1',2:'formStep2',3:'formStep3',4:'formSuccess'};
+  const el = document.getElementById(sections[step]);
+  if (el) el.classList.add('active');
   updateStepsBar(step);
   document.querySelector('.public-form-panel').scrollTo({top:0,behavior:'smooth'});
 }
 
-function updateStepsBar(step){
-  for(let i=1;i<=3;i++){
-    const item=document.getElementById(`step${i}El`);
-    const num=document.getElementById(`stepNum${i}`);
-    if(!item||!num) continue;
+function updateStepsBar(step) {
+  for (let i=1; i<=3; i++) {
+    const item = document.getElementById(`step${i}El`);
+    const num  = document.getElementById(`stepNum${i}`);
+    if (!item||!num) continue;
     item.classList.remove('active','done');
-    if(i<step){item.classList.add('done');num.innerHTML='<i class="fas fa-check" style="font-size:10px;"></i>';}
-    else if(i===step){item.classList.add('active');num.textContent=i;}
-    else{num.textContent=i;}
+    if (i < step) { item.classList.add('done'); num.innerHTML='<i class="fas fa-check" style="font-size:10px;"></i>'; }
+    else if (i===step) { item.classList.add('active'); num.textContent=i; }
+    else { num.textContent=i; }
   }
 }
 
-function buildReviewBox(){
-  const name=document.getElementById('u_name').value.trim();
-  const dept=document.getElementById('u_dept').value;
-  const emailName=document.getElementById('u_email_name').value.trim();
-  const emailDomain=document.getElementById('u_email_domain').value;
-  const phone='+218'+document.getElementById('u_phone').value.replace(/\D/g,'');
-  const issue=document.getElementById('u_issue').value;
-  const desc=document.getElementById('u_desc').value.trim();
-  const priColors={عادي:'var(--blue)',عاجل:'var(--orange)',حرج:'var(--red)'};
-  const priIcons={عادي:'circle-dot',عاجل:'bolt',حرج:'fire'};
-  const rows=[
+function buildReviewBox() {
+  const name       = document.getElementById('u_name').value.trim();
+  const dept       = document.getElementById('u_dept').value;
+  const emailName  = document.getElementById('u_email_name').value.trim();
+  const emailDomain= document.getElementById('u_email_domain').value;
+  const phone      = '+218'+document.getElementById('u_phone').value.replace(/\D/g,'');
+  const issue      = document.getElementById('u_issue').value;
+  const desc       = document.getElementById('u_desc').value.trim();
+  const priColors  = {عادي:'var(--blue)',عاجل:'var(--orange)',حرج:'var(--red)'};
+  const priIcons   = {عادي:'circle-dot',عاجل:'bolt',حرج:'fire'};
+  const rows = [
     {label:'الاسم الكامل',val:name,icon:'user'},
     {label:'القسم',val:dept,icon:'building'},
     {label:'البريد الإلكتروني',val:emailName+emailDomain,icon:'envelope'},
@@ -1223,130 +1324,84 @@ function buildReviewBox(){
 }
 
 // ════════════════════════════════════════════════ FORM VALIDATION
-function setHint(hintId,inpId,ok,msg){
-  const h=document.getElementById(hintId),i=document.getElementById(inpId);
-  if(!h) return;
+function setHint(hintId, inpId, ok, msg) {
+  const h=document.getElementById(hintId), i=document.getElementById(inpId);
+  if (!h) return;
   h.textContent=msg; h.className=`field-hint ${ok?'ok':'err'}`;
-  if(i){i.classList.toggle('valid',ok);i.classList.toggle('invalid',!ok);}
+  if (i) { i.classList.toggle('valid',ok); i.classList.toggle('invalid',!ok); }
 }
-function checkStep1(){
-  const ok=Object.values(fvStep1).every(Boolean);
-  const btn=document.getElementById('nextToStep2Btn');
-  if(btn) btn.disabled=!ok;
-}
-function checkStep2(){
-  const ok=Object.values(fvStep2).every(Boolean);
-  const btn=document.getElementById('nextToStep3Btn');
-  if(btn) btn.disabled=!ok;
-}
-function setPriority(p){
+function checkStep1() { const ok=Object.values(fvStep1).every(Boolean); const btn=document.getElementById('nextToStep2Btn'); if(btn) btn.disabled=!ok; }
+function checkStep2() { const ok=Object.values(fvStep2).every(Boolean); const btn=document.getElementById('nextToStep3Btn'); if(btn) btn.disabled=!ok; }
+
+function setPriority(p) {
   S.priority=p;
-  document.querySelectorAll('.priority-tab').forEach(t=>{
-    const m=t.dataset.pri===p;
-    t.className='priority-tab'+(m?` sel-${p}`:'');
-  });
+  document.querySelectorAll('.priority-tab').forEach(t => { const m=t.dataset.pri===p; t.className='priority-tab'+(m?` sel-${p}`:''); });
 }
-function attachFormListeners(){
-  // Name
+
+function attachFormListeners() {
   document.getElementById('u_name').addEventListener('input',function(){
-    const v=this.value.trim();
-    const ok=v.length>=2&&/^[\u0600-\u06FFa-zA-Z\s]+$/.test(v);
-    fvStep1.name=ok;
-    setHint('fh_name','u_name',ok,ok?'✓ الاسم مقبول':v.length<2?'الاسم قصير جداً':'يحتوي على أرقام أو رموز غير مقبولة');
-    checkStep1();
+    const v=this.value.trim(), ok=v.length>=2&&/^[\u0600-\u06FFa-zA-Z\s]+$/.test(v);
+    fvStep1.name=ok; setHint('fh_name','u_name',ok,ok?'✓ الاسم مقبول':v.length<2?'الاسم قصير جداً':'يحتوي على أرقام أو رموز'); checkStep1();
   });
-  // Dept
   document.getElementById('u_dept').addEventListener('change',function(){
-    fvStep1.dept=!!this.value;
-    setHint('fh_dept','u_dept',fvStep1.dept,fvStep1.dept?'✓ تم الاختيار':'الرجاء اختيار القسم');
-    checkStep1();
+    fvStep1.dept=!!this.value; setHint('fh_dept','u_dept',fvStep1.dept,fvStep1.dept?'✓ تم الاختيار':'الرجاء اختيار القسم'); checkStep1();
   });
-  // Email
   ['u_email_name','u_email_domain'].forEach(id=>{
     document.getElementById(id).addEventListener(id.includes('domain')?'change':'input',()=>{
       const name=document.getElementById('u_email_name').value.trim();
       const domain=document.getElementById('u_email_domain').value;
-      const full=name+domain;
-      const ok=/^[\w\-.]+@(?:amh|amp)\.ly$/.test(full);
-      fvStep1.email=ok;
-      setHint('fh_email','u_email_name',ok,ok?`✓ ${full}`:'صيغة البريد غير صحيحة');
-      checkStep1();
+      const full=name+domain, ok=/^[\w\-.]+@(?:amh|amp)\.ly$/.test(full);
+      fvStep1.email=ok; setHint('fh_email','u_email_name',ok,ok?`✓ ${full}`:'صيغة البريد غير صحيحة'); checkStep1();
     });
   });
-  // Phone
   document.getElementById('u_phone').addEventListener('input',function(){
-    const v=this.value.replace(/\D/g,'');
-    const ok=v.length===9;
-    fvStep1.phone=ok;
-    setHint('fh_phone','u_phone',ok,ok?`✓ +218${v}`:'يجب إدخال 9 أرقام بعد رمز الدولة');
-    checkStep1();
+    const v=this.value.replace(/\D/g,''), ok=v.length===9;
+    fvStep1.phone=ok; setHint('fh_phone','u_phone',ok,ok?`✓ +218${v}`:'يجب إدخال 9 أرقام'); checkStep1();
   });
-  // Issue
   document.getElementById('u_issue').addEventListener('change',function(){
-    fvStep2.issue=!!this.value;
-    setHint('fh_issue','u_issue',fvStep2.issue,fvStep2.issue?'✓ تم الاختيار':'الرجاء اختيار نوع المشكلة');
-    checkStep2();
+    fvStep2.issue=!!this.value; setHint('fh_issue','u_issue',fvStep2.issue,fvStep2.issue?'✓ تم الاختيار':'الرجاء اختيار نوع المشكلة'); checkStep2();
   });
-  // Desc
   document.getElementById('u_desc').addEventListener('input',function(){
     document.getElementById('descCounter').textContent=`${this.value.length} / 1000`;
     const ok=this.value.trim().length>=10;
-    fvStep2.desc=ok;
-    setHint('fh_desc','u_desc',ok,ok?'✓ وصف مفصّل':'الحد الأدنى 10 أحرف للوصف');
-    checkStep2();
+    fvStep2.desc=ok; setHint('fh_desc','u_desc',ok,ok?'✓ وصف مفصّل':'الحد الأدنى 10 أحرف'); checkStep2();
   });
 }
 
 // ════════════════════════════════════════════════ SUBMIT TICKET
-async function submitTicket(){
-  const btn=document.getElementById('submitBtn');
-  const spin=document.getElementById('submitSpinner');
-  const txt=document.getElementById('submitText');
+async function submitTicket() {
+  const btn=document.getElementById('submitBtn'), spin=document.getElementById('submitSpinner'), txt=document.getElementById('submitText');
   btn.disabled=true; spin.style.display='block'; txt.style.display='none';
   const body={
-    name:document.getElementById('u_name').value.trim(),
-    dept:document.getElementById('u_dept').value,
-    issue:document.getElementById('u_issue').value,
-    desc:document.getElementById('u_desc').value.trim(),
+    name:document.getElementById('u_name').value.trim(),dept:document.getElementById('u_dept').value,
+    issue:document.getElementById('u_issue').value,desc:document.getElementById('u_desc').value.trim(),
     email:document.getElementById('u_email_name').value.trim()+document.getElementById('u_email_domain').value,
-    phone:'218'+document.getElementById('u_phone').value.replace(/\D/g,''),
-    priority:S.priority
+    phone:'218'+document.getElementById('u_phone').value.replace(/\D/g,''),priority:S.priority
   };
-  try{
+  try {
     const res=await fetch('/api/tickets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
-    if(data.success){
-      document.getElementById('successTicketNo').textContent=data.ticket;
-      goStep(4);
-    } else { toast('حدث خطأ في الإرسال','error'); }
-  }catch{ toast('تعذّر الاتصال بالخادم، تحقق من الاتصال','error'); }
+    if (data.success) { document.getElementById('successTicketNo').textContent=data.ticket; goStep(4); }
+    else { toast('حدث خطأ في الإرسال','error'); }
+  } catch { toast('تعذّر الاتصال بالخادم','error'); }
   btn.disabled=false; spin.style.display='none'; txt.style.display='inline';
 }
 
-function newTicket(){
-  // Reset
-  ['u_name','u_email_name','u_phone','u_desc'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.value='';el.classList.remove('valid','invalid');}
-  });
-  document.getElementById('u_dept').value='';
-  document.getElementById('u_issue').value='';
+function newTicket() {
+  ['u_name','u_email_name','u_phone','u_desc'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('valid','invalid');}});
+  document.getElementById('u_dept').value=''; document.getElementById('u_issue').value='';
   document.getElementById('u_email_domain').value='@amh.ly';
-  ['fh_name','fh_email','fh_phone','fh_dept','fh_issue','fh_desc'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.textContent='';el.className='field-hint';}
-  });
+  ['fh_name','fh_email','fh_phone','fh_dept','fh_issue','fh_desc'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='';el.className='field-hint';}});
   document.getElementById('descCounter').textContent='0 / 1000';
   Object.keys(fvStep1).forEach(k=>fvStep1[k]=false);
   Object.keys(fvStep2).forEach(k=>fvStep2[k]=false);
-  setPriority('عادي');
-  checkStep1(); checkStep2();
-  goStep(1);
+  setPriority('عادي'); checkStep1(); checkStep2(); goStep(1);
 }
 
 // ════════════════════════════════════════════════ LOGIN
-const lv={user:false,pass:false};
-function attachLoginListeners(){
+const lv = {user:false, pass:false};
+
+function attachLoginListeners() {
   document.getElementById('l_user').addEventListener('input',function(){
     lv.user=this.value.trim().length>=3;
     setHint('fh_luser','l_user',lv.user,lv.user?'':'اسم المستخدم قصير');
@@ -1358,100 +1413,121 @@ function attachLoginListeners(){
     document.getElementById('loginBtn').disabled=!(lv.user&&lv.pass);
   });
   document.getElementById('l_pass').addEventListener('keydown',e=>{
-    if(e.key==='Enter'&&!document.getElementById('loginBtn').disabled) doLogin();
+    if (e.key==='Enter'&&!document.getElementById('loginBtn').disabled) doLogin();
   });
 }
 
-async function doLogin(){
-  const btn=document.getElementById('loginBtn');
-  const spin=document.getElementById('loginSpinner');
-  const txt=document.getElementById('loginText');
+async function doLogin() {
+  const btn=document.getElementById('loginBtn'), spin=document.getElementById('loginSpinner'), txt=document.getElementById('loginText');
   btn.disabled=true; spin.style.display='block'; txt.style.display='none';
   document.getElementById('loginErr').textContent='';
-  try{
-    const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+
+  try {
+    const res = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({username:document.getElementById('l_user').value.trim(),password:document.getElementById('l_pass').value.trim()})});
-    const data=await res.json();
+    const data = await res.json();
+
     spin.style.display='none'; txt.style.display='inline'; btn.disabled=false;
-    if(!data.ok){
+
+    if (!data.ok) {
       document.getElementById('loginErr').textContent='اسم المستخدم أو كلمة المرور غير صحيحة';
       document.getElementById('l_pass').classList.add('invalid');
       return;
     }
+
+    // ✅ تسجيل الدخول ناجح — إغلاق Panel أولاً ثم الانتقال
     S.user=data.user; S.role=data.role; S.fullname=data.fullname||data.user;
     closeStaffLogin();
-    // Show app shell, hide public
-    document.getElementById('viewPublic').style.display='none';
-    document.getElementById('appShell').style.display='flex';
-    updateClock();
-    document.getElementById('userDisplayName').textContent=S.fullname;
-    document.getElementById('userDisplayRole').textContent=data.role==='admin'?'مدير النظام':'فني دعم';
-    document.getElementById('userAvatarLetter').textContent=S.fullname.charAt(0);
-    const isAdmin=data.role==='admin';
-    document.getElementById('navAdmin').style.display=isAdmin?'flex':'none';
-    document.getElementById('navTech').style.display=!isAdmin?'flex':'none';
-    document.getElementById('navDash').style.display='flex';
-    if(isAdmin){
-      document.getElementById('navSectionMgmt').style.display='block';
-      document.getElementById('navUsers').style.display='flex';
-      document.getElementById('navSettings').style.display='flex';
-      showView('viewAdmin'); loadAdmin(); updateQuickBadge();
+
+    // تحديث واجهة المستخدم في الخلفية
+    document.getElementById('userDisplayName').textContent = S.fullname;
+    document.getElementById('userDisplayRole').textContent = data.role==='admin'?'مدير النظام':'فني دعم';
+    document.getElementById('userAvatarLetter').textContent = S.fullname.charAt(0);
+
+    const isAdmin = data.role==='admin';
+    document.getElementById('navAdmin').style.display   = isAdmin?'flex':'none';
+    document.getElementById('navTech').style.display    = !isAdmin?'flex':'none';
+    document.getElementById('navDash').style.display    = 'flex';
+    if (isAdmin) {
+      document.getElementById('navSectionMgmt').style.display = 'block';
+      document.getElementById('navUsers').style.display       = 'flex';
+      document.getElementById('navSettings').style.display    = 'flex';
     } else {
-      showView('viewTech'); loadTech();
+      document.getElementById('navSectionMgmt').style.display = 'none';
+      document.getElementById('navUsers').style.display       = 'none';
+      document.getElementById('navSettings').style.display    = 'none';
     }
-  }catch{
+
+    // ── الانتقال التلقائي السلس ──
+    document.getElementById('loaderMsg').textContent = 'تم التحقق بنجاح...';
+    document.getElementById('loaderSub').textContent = `مرحباً ${S.fullname}، جاري تحميل لوحة التحكم`;
+
+    transitionToApp(() => {
+      // يُنفَّذ بعد 650ms (أثناء ظهور الـ loader)
+      // نُجهّز البيانات قبل إظهار الشاشة
+      if (isAdmin) {
+        showView('viewAdmin'); loadAdmin(); updateQuickBadge();
+      } else {
+        showView('viewTech'); loadTech();
+      }
+      updateClock();
+    });
+
+  } catch {
     spin.style.display='none'; txt.style.display='inline'; btn.disabled=false;
     document.getElementById('loginErr').textContent='تعذّر الاتصال بالخادم';
   }
 }
 
-async function logout(){
+async function logout() {
   await fetch('/api/logout',{method:'POST'});
-  S={user:null,role:null,fullname:null,techs:[...S.techs],depts:[...S.depts],issues:[...S.issues],adminData:[],priority:'عادي'};
-  document.getElementById('appShell').style.display='none';
-  document.getElementById('viewPublic').style.display='flex';
+  S = {user:null,role:null,fullname:null,techs:[...S.techs],depts:[...S.depts],issues:[...S.issues],adminData:[],priority:'عادي'};
+
+  // إعادة ضبط nav
   ['navAdmin','navTech','navDash','navSectionMgmt','navUsers','navSettings'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display='none';
+    const el=document.getElementById(id); if(el) el.style.display='none';
   });
+
+  // ── الانتقال العكسي السلس ──
+  transitionToPublic();
 }
 
 // ════════════════════════════════════════════════ BADGE
-async function updateQuickBadge(){
-  try{
-    const res=await fetch('/api/stats/quick');
-    const data=await res.json();
-    const nb=document.getElementById('navBadgeNew');
-    nb.textContent=data.new;
-    nb.style.display=data.new>0?'inline-block':'none';
-  }catch{}
+async function updateQuickBadge() {
+  try {
+    const res  = await fetch('/api/stats/quick');
+    const data = await res.json();
+    const nb   = document.getElementById('navBadgeNew');
+    nb.textContent = data.new;
+    nb.style.display = data.new > 0 ? 'inline-block' : 'none';
+  } catch {}
 }
 
 // ════════════════════════════════════════════════ ADMIN
-async function loadAdmin(){
-  const res=await fetch('/api/tickets');
-  S.adminData=await res.json();
+async function loadAdmin() {
+  const res = await fetch('/api/tickets');
+  S.adminData = await res.json();
   renderAdminTable(S.adminData);
   updateQuickBadge();
 }
-function filterAdminTable(){
-  const q=document.getElementById('adminSearch').value.toLowerCase();
-  const st=document.getElementById('adminStatusFilter').value;
-  const pri=document.getElementById('adminPriFilter').value;
+function filterAdminTable() {
+  const q   = document.getElementById('adminSearch').value.toLowerCase();
+  const st  = document.getElementById('adminStatusFilter').value;
+  const pri = document.getElementById('adminPriFilter').value;
   renderAdminTable(S.adminData.filter(r=>
     (!q||r.name.toLowerCase().includes(q)||r.ticket_no.toLowerCase().includes(q))&&
     (!st||r.status===st)&&(!pri||r.priority===pri)
   ));
 }
-function renderAdminTable(data){
-  const techOpts=S.techs.map(t=>`<option value="${t.username}">${t.fullname}</option>`).join('');
-  let html='';
-  if(!data.length){
+function renderAdminTable(data) {
+  const techOpts = S.techs.map(t=>`<option value="${t.username}">${t.fullname}</option>`).join('');
+  let html = '';
+  if (!data.length) {
     html=`<tr><td colspan="8"><div class="empty-state"><i class="fas fa-inbox"></i><p>لا توجد بلاغات</p></div></td></tr>`;
   } else {
     data.forEach(r=>{
-      const badge=r.status==='مكتمل'?'badge-done':r.status==='قيد التنفيذ'?'badge-proc':'badge-new';
-      const priCls=`pri-${r.priority||'عادي'}`;
+      const badge  = r.status==='مكتمل'?'badge-done':r.status==='قيد التنفيذ'?'badge-proc':'badge-new';
+      const priCls = `pri-${r.priority||'عادي'}`;
       html+=`<tr>
         <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${r.ticket_no}</strong></td>
         <td><div style="font-weight:600;">${r.name}</div><div class="td-sub">${r.dept}</div></td>
@@ -1464,148 +1540,123 @@ function renderAdminTable(data){
       </tr>`;
     });
   }
-  document.getElementById('adminTbody').innerHTML=html;
+  document.getElementById('adminTbody').innerHTML = html;
 }
-async function confirmAssign(ticketNo){
-  const tech=document.getElementById(`sel_${ticketNo}`).value;
-  if(!tech){toast('الرجاء اختيار فني','error');return}
+async function confirmAssign(ticketNo) {
+  const tech = document.getElementById(`sel_${ticketNo}`).value;
+  if (!tech) { toast('الرجاء اختيار فني','error'); return; }
   await fetch(`/api/tickets/${ticketNo}/assign`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tech})});
-  toast('تم تعيين الفني بنجاح','success');loadAdmin();
+  toast('تم تعيين الفني بنجاح','success'); loadAdmin();
 }
 
 // ════════════════════════════════════════════════ TECH
-async function loadTech(){
-  const res=await fetch('/api/tickets');
-  const all=await res.json();
-  const unassigned=all.filter(r=>!r.tech&&r.status==='جديد');
-  const myTickets=all.filter(r=>r.tech===S.user);
-  renderUnassigned(unassigned);renderTechTable(myTickets);
-  const nb=document.getElementById('navBadgeTech');
-  const pending=myTickets.filter(r=>r.status!=='مكتمل').length;
-  nb.textContent=pending;nb.style.display=pending>0?'inline-block':'none';
+async function loadTech() {
+  const res    = await fetch('/api/tickets');
+  const all    = await res.json();
+  const unassigned = all.filter(r=>!r.tech&&r.status==='جديد');
+  const myTickets  = all.filter(r=>r.tech===S.user);
+  renderUnassigned(unassigned); renderTechTable(myTickets);
+  const nb      = document.getElementById('navBadgeTech');
+  const pending = myTickets.filter(r=>r.status!=='مكتمل').length;
+  nb.textContent = pending; nb.style.display = pending>0?'inline-block':'none';
 }
-function renderUnassigned(data){
+function renderUnassigned(data) {
   let html='';
-  if(!data.length){
-    html=`<tr><td colspan="6"><div class="empty-state"><i class="fas fa-check-circle"></i><p>لا توجد بلاغات غير معيّنة</p></div></td></tr>`;
-  } else {
-    data.forEach(r=>{
-      const priCls=`pri-${r.priority||'عادي'}`;
-      html+=`<tr>
-        <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${r.ticket_no}</strong></td>
-        <td><div style="font-weight:600;">${r.name}</div><div class="td-sub">${r.dept}</div></td>
-        <td>${r.issue}</td>
-        <td><span class="${priCls}" style="font-weight:700;font-size:12px;">${r.priority||'عادي'}</span></td>
-        <td style="font-size:12px;color:var(--ink2);">${r.created_at||''}</td>
-        <td>
-          <button class="btn btn-primary btn-sm" onclick="selfAssign('${r.ticket_no}')"><i class="fas fa-hand-pointer"></i> تعيين لي</button>
-          <button class="btn btn-ghost btn-sm" onclick="openTicketModal('${r.ticket_no}')"><i class="fas fa-eye"></i></button>
-        </td>
-      </tr>`;
-    });
-  }
-  document.getElementById('unassignedTbody').innerHTML=html;
+  if (!data.length) { html=`<tr><td colspan="6"><div class="empty-state"><i class="fas fa-check-circle"></i><p>لا توجد بلاغات غير معيّنة</p></div></td></tr>`; }
+  else { data.forEach(r=>{ const priCls=`pri-${r.priority||'عادي'}`;
+    html+=`<tr>
+      <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${r.ticket_no}</strong></td>
+      <td><div style="font-weight:600;">${r.name}</div><div class="td-sub">${r.dept}</div></td>
+      <td>${r.issue}</td>
+      <td><span class="${priCls}" style="font-weight:700;font-size:12px;">${r.priority||'عادي'}</span></td>
+      <td style="font-size:12px;color:var(--ink2);">${r.created_at||''}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="selfAssign('${r.ticket_no}')"><i class="fas fa-hand-pointer"></i> تعيين لي</button>
+        <button class="btn btn-ghost btn-sm" onclick="openTicketModal('${r.ticket_no}')"><i class="fas fa-eye"></i></button>
+      </td>
+    </tr>`;
+  }); }
+  document.getElementById('unassignedTbody').innerHTML = html;
 }
-function renderTechTable(data){
+function renderTechTable(data) {
   let html='';
-  if(!data.length){
-    html=`<tr><td colspan="8"><div class="empty-state"><i class="fas fa-inbox"></i><p>لا توجد مهام معيّنة</p></div></td></tr>`;
-  } else {
-    data.forEach(r=>{
-      const badge=r.status==='مكتمل'?'badge-done':r.status==='قيد التنفيذ'?'badge-proc':'badge-new';
-      const priCls=`pri-${r.priority||'عادي'}`;
-      let action='';
-      if(r.status==='جديد') action=`<button class="btn btn-outline btn-sm" onclick="updateSt('${r.ticket_no}','قيد التنفيذ')"><i class="fas fa-play"></i> بدء</button>`;
-      else if(r.status==='قيد التنفيذ') action=`<button class="btn btn-success btn-sm" onclick="openCompleteModal('${r.ticket_no}')"><i class="fas fa-check"></i> إتمام</button>`;
-      else action=`<span style="color:var(--green);font-size:12px;"><i class="fas fa-check-circle"></i> مكتمل</span>`;
-      html+=`<tr>
-        <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${r.ticket_no}</strong></td>
-        <td><div style="font-weight:600;">${r.name}</div></td>
-        <td style="color:var(--ink2);font-size:12px;">${r.dept}</td>
-        <td>${r.issue}</td>
-        <td><span class="${priCls}" style="font-weight:700;font-size:12px;">${r.priority||'عادي'}</span></td>
-        <td><span class="badge ${badge}"><span class="badge-dot"></span>${r.status}</span></td>
-        <td>${action}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="openTicketModal('${r.ticket_no}')"><i class="fas fa-eye"></i></button></td>
-      </tr>`;
-    });
-  }
-  document.getElementById('techTbody').innerHTML=html;
+  if (!data.length) { html=`<tr><td colspan="8"><div class="empty-state"><i class="fas fa-inbox"></i><p>لا توجد مهام معيّنة</p></div></td></tr>`; }
+  else { data.forEach(r=>{
+    const badge=r.status==='مكتمل'?'badge-done':r.status==='قيد التنفيذ'?'badge-proc':'badge-new';
+    const priCls=`pri-${r.priority||'عادي'}`;
+    let action='';
+    if (r.status==='جديد') action=`<button class="btn btn-outline btn-sm" onclick="updateSt('${r.ticket_no}','قيد التنفيذ')"><i class="fas fa-play"></i> بدء</button>`;
+    else if (r.status==='قيد التنفيذ') action=`<button class="btn btn-success btn-sm" onclick="openCompleteModal('${r.ticket_no}')"><i class="fas fa-check"></i> إتمام</button>`;
+    else action=`<span style="color:var(--green);font-size:12px;"><i class="fas fa-check-circle"></i> مكتمل</span>`;
+    html+=`<tr>
+      <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${r.ticket_no}</strong></td>
+      <td><div style="font-weight:600;">${r.name}</div></td>
+      <td style="color:var(--ink2);font-size:12px;">${r.dept}</td>
+      <td>${r.issue}</td>
+      <td><span class="${priCls}" style="font-weight:700;font-size:12px;">${r.priority||'عادي'}</span></td>
+      <td><span class="badge ${badge}"><span class="badge-dot"></span>${r.status}</span></td>
+      <td>${action}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openTicketModal('${r.ticket_no}')"><i class="fas fa-eye"></i></button></td>
+    </tr>`;
+  }); }
+  document.getElementById('techTbody').innerHTML = html;
 }
-async function selfAssign(ticketNo){
+async function selfAssign(ticketNo) {
   await fetch(`/api/tickets/${ticketNo}/assign`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tech:S.user})});
-  toast('تم تعيين البلاغ إليك','success');loadTech();
+  toast('تم تعيين البلاغ إليك','success'); loadTech();
 }
-async function updateSt(ticketNo,status){
+async function updateSt(ticketNo, status) {
   await fetch(`/api/tickets/${ticketNo}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
-  toast('تم تحديث الحالة','info');loadTech();
+  toast('تم تحديث الحالة','info'); loadTech();
 }
 
 // ════════════════════════════════════════════════ COMPLETE MODAL
-async function openCompleteModal(ticketNo){
-  completingTicket=ticketNo;
-  document.getElementById('completingTicketNo').textContent=`رقم البلاغ: ${ticketNo}`;
-  document.getElementById('solutionInput').value='';
-  document.getElementById('solutionInput').classList.remove('valid','invalid');
+async function openCompleteModal(ticketNo) {
+  completingTicket = ticketNo;
+  document.getElementById('completingTicketNo').textContent = `رقم البلاغ: ${ticketNo}`;
+  document.getElementById('solutionInput').value=''; document.getElementById('solutionInput').classList.remove('valid','invalid');
   document.getElementById('solutionRequiredHint').style.display='none';
   document.getElementById('completeProblemRows').innerHTML=`<div style="text-align:center;padding:16px;color:var(--ink3);"><i class="fas fa-spinner fa-spin"></i></div>`;
   document.getElementById('completeModal').classList.add('open');
-  try{
-    const res=await fetch(`/api/tickets/${ticketNo}`);
-    const t=await res.json();
-    const priCls=`pri-${t.priority||'عادي'}`;
-    const priIcon=t.priority==='حرج'?'fire':t.priority==='عاجل'?'bolt':'circle-dot';
+  try {
+    const res=await fetch(`/api/tickets/${ticketNo}`); const t=await res.json();
+    const priCls=`pri-${t.priority||'عادي'}`, priIcon=t.priority==='حرج'?'fire':t.priority==='عاجل'?'bolt':'circle-dot';
     const rows=[
-      {key:'اسم الموظف',val:t.name},
-      {key:'القسم',val:t.dept},
-      {key:'نوع المشكلة',val:t.issue},
+      {key:'اسم الموظف',val:t.name},{key:'القسم',val:t.dept},{key:'نوع المشكلة',val:t.issue},
       {key:'الأولوية',val:`<span class="${priCls}" style="font-weight:700;"><i class="fas fa-${priIcon}"></i> ${t.priority||'عادي'}</span>`},
       {key:'تاريخ الإنشاء',val:t.created_at||'—'},
     ];
-    if(t.description&&t.description.trim()) rows.push({key:'وصف المشكلة',val:`<span style="line-height:1.7;">${t.description}</span>`});
+    if (t.description&&t.description.trim()) rows.push({key:'وصف المشكلة',val:`<span style="line-height:1.7;">${t.description}</span>`});
     document.getElementById('completeProblemRows').innerHTML=rows.map(r=>`
-      <div class="problem-row">
-        <span class="problem-row-key">${r.key}</span>
-        <span class="problem-row-val">${r.val}</span>
-      </div>`).join('');
-  }catch{
-    document.getElementById('completeProblemRows').innerHTML=`<div style="color:var(--red);font-size:12px;padding:8px;">تعذّر تحميل البيانات</div>`;
-  }
+      <div class="problem-row"><span class="problem-row-key">${r.key}</span><span class="problem-row-val">${r.val}</span></div>`).join('');
+  } catch { document.getElementById('completeProblemRows').innerHTML=`<div style="color:var(--red);font-size:12px;padding:8px;">تعذّر تحميل البيانات</div>`; }
 }
-function onSolutionInput(){
+function onSolutionInput() {
   const val=document.getElementById('solutionInput').value.trim();
-  if(val.length>0){
-    document.getElementById('solutionRequiredHint').style.display='none';
-    document.getElementById('solutionInput').classList.remove('invalid');
-    document.getElementById('solutionInput').classList.add('valid');
-  }
+  if (val.length>0) { document.getElementById('solutionRequiredHint').style.display='none'; document.getElementById('solutionInput').classList.remove('invalid'); document.getElementById('solutionInput').classList.add('valid'); }
 }
-async function confirmComplete(){
+async function confirmComplete() {
   const solution=document.getElementById('solutionInput').value.trim();
-  if(!solution){
-    document.getElementById('solutionRequiredHint').style.display='flex';
-    document.getElementById('solutionInput').classList.add('invalid');
-    document.getElementById('solutionInput').focus(); return;
-  }
+  if (!solution) { document.getElementById('solutionRequiredHint').style.display='flex'; document.getElementById('solutionInput').classList.add('invalid'); document.getElementById('solutionInput').focus(); return; }
   const btn=document.getElementById('confirmCompleteBtn');
-  btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
-  try{
+  btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+  try {
     await fetch(`/api/tickets/${completingTicket}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'مكتمل',solution})});
-    closeModal('completeModal');toast('تم إكمال البلاغ بنجاح ✓','success');loadTech();
-  }catch{toast('حدث خطأ أثناء الحفظ','error');}
-  btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i> تأكيد الإتمام';
+    closeModal('completeModal'); toast('تم إكمال البلاغ بنجاح ✓','success'); loadTech();
+  } catch { toast('حدث خطأ أثناء الحفظ','error'); }
+  btn.disabled=false; btn.innerHTML='<i class="fas fa-check"></i> تأكيد الإتمام';
 }
 document.getElementById('completeModal').addEventListener('click',function(e){if(e.target===this)closeModal('completeModal')});
 
 // ════════════════════════════════════════════════ TICKET MODAL
-async function openTicketModal(ticketNo){
+async function openTicketModal(ticketNo) {
   document.getElementById('ticketModal').classList.add('open');
-  document.getElementById('modalTitle').textContent=`تفاصيل البلاغ ${ticketNo}`;
-  document.getElementById('modalBody').innerHTML=`<div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>`;
-  document.getElementById('modalFooter').innerHTML='';
-  const res=await fetch(`/api/tickets/${ticketNo}`);
-  const data=await res.json();
-  const badge=data.status==='مكتمل'?'badge-done':data.status==='قيد التنفيذ'?'badge-proc':'badge-new';
+  document.getElementById('modalTitle').textContent = `تفاصيل البلاغ ${ticketNo}`;
+  document.getElementById('modalBody').innerHTML = `<div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>`;
+  document.getElementById('modalFooter').innerHTML = '';
+  const res  = await fetch(`/api/tickets/${ticketNo}`);
+  const data = await res.json();
+  const badge= data.status==='مكتمل'?'badge-done':data.status==='قيد التنفيذ'?'badge-proc':'badge-new';
   const solutionBlock=(data.solution&&data.solution.trim())
     ?`<div style="background:rgba(47,216,122,.08);border:1px solid rgba(47,216,122,.2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;">
         <div style="font-size:10px;font-weight:600;color:var(--green);text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-bottom:6px;"><i class="fas fa-lightbulb"></i> الحل المُطبَّق</div>
@@ -1633,26 +1684,25 @@ async function openTicketModal(ticketNo){
       ${S.user?`<div class="note-input-wrap"><input id="noteInput" class="inp" placeholder="أضف ملاحظة..."><button class="btn btn-outline btn-sm" onclick="addNote('${ticketNo}')"><i class="fas fa-plus"></i></button></div>`:''}
     </div>`;
 }
-function closeModal(id){document.getElementById(id).classList.remove('open')}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.getElementById('ticketModal').addEventListener('click',function(e){if(e.target===this)closeModal('ticketModal')});
 document.getElementById('userModal').addEventListener('click',function(e){if(e.target===this)closeModal('userModal')});
 
-async function addNote(ticketNo){
-  const inp=document.getElementById('noteInput');
-  const note=inp.value.trim();
-  if(!note) return;
+async function addNote(ticketNo) {
+  const inp=document.getElementById('noteInput'), note=inp.value.trim();
+  if (!note) return;
   await fetch(`/api/tickets/${ticketNo}/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({author:S.fullname||S.user,note})});
-  inp.value='';openTicketModal(ticketNo);toast('تمت إضافة الملاحظة','info');
+  inp.value=''; openTicketModal(ticketNo); toast('تمت إضافة الملاحظة','info');
 }
 
 // ════════════════════════════════════════════════ DASHBOARD
-async function loadDashboard(){
-  const [statsRes,actRes]=await Promise.all([fetch('/api/stats/advanced'),fetch('/api/activities')]);
-  const stats=await statsRes.json(),acts=await actRes.json();
-  document.getElementById('d_total').textContent=stats.total;
-  document.getElementById('d_done').textContent=stats.completed;
-  document.getElementById('d_avg').textContent=stats.completionTime.avg||'—';
-  document.getElementById('d_rate').textContent=(stats.total>0?((stats.completed/stats.total)*100).toFixed(1):0)+'%';
+async function loadDashboard() {
+  const [statsRes,actRes] = await Promise.all([fetch('/api/stats/advanced'),fetch('/api/activities')]);
+  const stats=await statsRes.json(), acts=await actRes.json();
+  document.getElementById('d_total').textContent = stats.total;
+  document.getElementById('d_done').textContent  = stats.completed;
+  document.getElementById('d_avg').textContent   = stats.completionTime.avg||'—';
+  document.getElementById('d_rate').textContent  = (stats.total>0?((stats.completed/stats.total)*100).toFixed(1):0)+'%';
   const cd={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b93aa',font:{family:'IBM Plex Sans Arabic'}}}}};
   drawChart('deptChart','bar',{labels:stats.deptChart.map(d=>d.dept),datasets:[{label:'بلاغات',data:stats.deptChart.map(d=>d.count),backgroundColor:'rgba(79,142,247,.7)',borderColor:'rgba(79,142,247,1)',borderWidth:2,borderRadius:6}]},{...cd,scales:{x:{ticks:{color:'#8b93aa'},grid:{color:'#242936'}},y:{ticks:{color:'#8b93aa'},grid:{color:'#242936'},beginAtZero:true}}});
   drawChart('issueChart','doughnut',{labels:stats.issueChart.map(d=>d.issue),datasets:[{data:stats.issueChart.map(d=>d.count),backgroundColor:['#4f8ef7','#2fd87a','#f59e0b','#f43f5e','#8b5cf6','#06b6d4']}]},cd);
@@ -1660,71 +1710,67 @@ async function loadDashboard(){
   drawChart('techChart','bar',{labels:stats.techChart.map(d=>d.tech),datasets:[{label:'مهام',data:stats.techChart.map(d=>d.count),backgroundColor:'rgba(139,92,246,.7)',borderColor:'rgba(139,92,246,1)',borderWidth:2,borderRadius:6}]},{...cd,indexAxis:'y',scales:{x:{ticks:{color:'#8b93aa'},grid:{color:'#242936'},beginAtZero:true},y:{ticks:{color:'#8b93aa'},grid:{color:'#242936'}}}});
   const dotMap={'بلاغ جديد':'dot-new','قيد المعالجة':'dot-proc','تم الإكمال':'dot-done'};
   const iconMap={'بلاغ جديد':'fa-plus','قيد المعالجة':'fa-spinner','تم الإكمال':'fa-check'};
-  document.getElementById('activityList').innerHTML=acts.length
+  document.getElementById('activityList').innerHTML = acts.length
     ?acts.map(a=>`<div class="activity-item"><div class="activity-dot ${dotMap[a.action]||'dot-proc'}"><i class="fas ${iconMap[a.action]||'fa-circle'}"></i></div><div class="activity-content"><div class="activity-title">${a.ticket} — ${a.action}</div><div class="activity-sub">الموظف: ${a.user}${a.tech?' · الفني: '+a.tech:''}</div></div><div class="activity-time">${a.time}</div></div>`).join('')
     :'<div class="empty-state"><i class="fas fa-inbox"></i><p>لا توجد نشاطات</p></div>';
 }
-function drawChart(id,type,data,options){
-  if(charts[id]) charts[id].destroy();
-  const ctx=document.getElementById(id);
-  if(!ctx) return;
+function drawChart(id, type, data, options) {
+  if (charts[id]) charts[id].destroy();
+  const ctx=document.getElementById(id); if(!ctx) return;
   charts[id]=new Chart(ctx.getContext('2d'),{type,data,options});
 }
 
 // ════════════════════════════════════════════════ USERS MANAGEMENT
-async function loadUsers(){
-  const res=await fetch('/api/users');
-  const users=await res.json();
+async function loadUsers() {
+  const res  = await fetch('/api/users');
+  const users= await res.json();
   const roleAr={admin:'مدير',tech:'فني'};
   let html='';
-  if(!users.length){
-    html=`<tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i><p>لا يوجد مستخدمون</p></div></td></tr>`;
-  } else {
-    users.forEach((u,i)=>{
-      const roleBadge=u.role==='admin'?'badge-admin':'badge-tech';
-      const activeBadge=u.active?'badge-done':'badge-off';
-      html+=`<tr>
-        <td style="color:var(--ink3);font-size:12px;">${i+1}</td>
-        <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${u.username}</strong></td>
-        <td>${u.fullname||'—'}</td>
-        <td><span class="badge ${roleBadge}">${roleAr[u.role]||u.role}</span></td>
-        <td><span class="badge ${activeBadge}">${u.active?'نشط':'معطّل'}</span></td>
-        <td style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn btn-outline btn-sm" onclick="openEditUserModal(${u.id},'${u.username}','${(u.fullname||'').replace(/'/g,"\\'")}','${u.role}')"><i class="fas fa-pen"></i> تعديل</button>
-          ${u.active
-            ?`<button class="btn btn-danger btn-sm" onclick="toggleUser(${u.id},0)"><i class="fas fa-ban"></i> تعطيل</button>`
-            :`<button class="btn btn-success btn-sm" onclick="toggleUser(${u.id},1)"><i class="fas fa-check"></i> تفعيل</button>`
-          }
-        </td>
-      </tr>`;
-    });
-  }
-  document.getElementById('usersTbody').innerHTML=html;
+  if (!users.length) { html=`<tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i><p>لا يوجد مستخدمون</p></div></td></tr>`; }
+  else { users.forEach((u,i)=>{
+    const roleBadge  =u.role==='admin'?'badge-admin':'badge-tech';
+    const activeBadge=u.active?'badge-done':'badge-off';
+    html+=`<tr>
+      <td style="color:var(--ink3);font-size:12px;">${i+1}</td>
+      <td><strong style="font-family:'Space Mono',monospace;font-size:12px;">${u.username}</strong></td>
+      <td>${u.fullname||'—'}</td>
+      <td><span class="badge ${roleBadge}">${roleAr[u.role]||u.role}</span></td>
+      <td><span class="badge ${activeBadge}">${u.active?'نشط':'معطّل'}</span></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openEditUserModal(${u.id},'${u.username}','${(u.fullname||'').replace(/'/g,"\\'")}','${u.role}')"><i class="fas fa-pen"></i> تعديل</button>
+        ${u.active
+          ?`<button class="btn btn-danger btn-sm" onclick="toggleUser(${u.id},0)"><i class="fas fa-ban"></i> تعطيل</button>`
+          :`<button class="btn btn-success btn-sm" onclick="toggleUser(${u.id},1)"><i class="fas fa-check"></i> تفعيل</button>`
+        }
+      </td>
+    </tr>`;
+  }); }
+  document.getElementById('usersTbody').innerHTML = html;
 }
-function openAddUserModal(){
+function openAddUserModal() {
   editingUserId=null;
   document.getElementById('userModalTitle').textContent='مستخدم جديد';
-  document.getElementById('um_username').value='';document.getElementById('um_username').disabled=false;
-  document.getElementById('um_fullname').value='';document.getElementById('um_role').value='tech';
-  document.getElementById('um_password').value='';document.getElementById('um_pass_req').style.display='';
+  document.getElementById('um_username').value=''; document.getElementById('um_username').disabled=false;
+  document.getElementById('um_fullname').value=''; document.getElementById('um_role').value='tech';
+  document.getElementById('um_password').value=''; document.getElementById('um_pass_req').style.display='';
   document.getElementById('userModal').classList.add('open');
 }
-function openEditUserModal(id,username,fullname,role){
+function openEditUserModal(id, username, fullname, role) {
   editingUserId=id;
   document.getElementById('userModalTitle').textContent='تعديل المستخدم';
-  document.getElementById('um_username').value=username;document.getElementById('um_username').disabled=true;
-  document.getElementById('um_fullname').value=fullname;document.getElementById('um_role').value=role;
-  document.getElementById('um_password').value='';document.getElementById('um_pass_req').style.display='none';
+  document.getElementById('um_username').value=username; document.getElementById('um_username').disabled=true;
+  document.getElementById('um_fullname').value=fullname; document.getElementById('um_role').value=role;
+  document.getElementById('um_password').value=''; document.getElementById('um_pass_req').style.display='none';
   document.getElementById('userModal').classList.add('open');
 }
-async function saveUser(){
+async function saveUser() {
   const username=document.getElementById('um_username').value.trim();
   const fullname=document.getElementById('um_fullname').value.trim();
-  const role=document.getElementById('um_role').value;
+  const role    =document.getElementById('um_role').value;
   const password=document.getElementById('um_password').value.trim();
-  if(!editingUserId&&(!username||!password)){toast('اسم المستخدم وكلمة المرور مطلوبان','error');return;}
-  if(editingUserId){
-    const body={fullname,role};if(password)body.password=password;
+  if (!editingUserId&&(!username||!password)) { toast('اسم المستخدم وكلمة المرور مطلوبان','error'); return; }
+  if (editingUserId) {
+    const body={fullname,role}; if(password) body.password=password;
     const res=await fetch(`/api/users/${editingUserId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await res.json();
     if(d.success){toast('تم تحديث المستخدم','success');closeModal('userModal');loadUsers();}
@@ -1732,25 +1778,25 @@ async function saveUser(){
   } else {
     const res=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,fullname,role,password})});
     const d=await res.json();
-    if(d.success){toast('تم إضافة المستخدم','success');closeModal('userModal');loadUsers();const tres=await fetch('/api/techs');S.techs=await tres.json();}
+    if(d.success){toast('تم إضافة المستخدم','success');closeModal('userModal');loadUsers();fetch('/api/techs').then(r=>r.json()).then(t=>S.techs=t);}
     else toast(d.error||'حدث خطأ','error');
   }
 }
-async function toggleUser(uid,active){
+async function toggleUser(uid, active) {
   await fetch(`/api/users/${uid}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});
-  toast(active?'تم تفعيل الحساب':'تم تعطيل الحساب',active?'success':'info');loadUsers();
+  toast(active?'تم تفعيل الحساب':'تم تعطيل الحساب',active?'success':'info'); loadUsers();
 }
 
 // ════════════════════════════════════════════════ SETTINGS
-async function loadSettings(){
+async function loadSettings() {
   const [dRes,iRes]=await Promise.all([fetch('/api/departments'),fetch('/api/issue-types')]);
-  const depts=await dRes.json(),issues=await iRes.json();
+  const depts=await dRes.json(), issues=await iRes.json();
   renderMgmtList('deptsListEl',depts,'dept');
   renderMgmtList('issuesListEl',issues,'issue');
 }
-function renderMgmtList(elId,items,type){
+function renderMgmtList(elId, items, type) {
   const el=document.getElementById(elId);
-  if(!items.length){el.innerHTML=`<div style="color:var(--ink3);font-size:13px;text-align:center;padding:12px;">لا توجد عناصر</div>`;return;}
+  if (!items.length) { el.innerHTML=`<div style="color:var(--ink3);font-size:13px;text-align:center;padding:12px;">لا توجد عناصر</div>`; return; }
   el.innerHTML=items.map(item=>`
     <div class="mgmt-item" style="${!item.active?'opacity:.5':''}">
       <span class="mgmt-item-name">${item.name}</span>
@@ -1762,37 +1808,37 @@ function renderMgmtList(elId,items,type){
       </div>
     </div>`).join('');
 }
-async function addDept(){
+async function addDept() {
   const name=document.getElementById('newDeptName').value.trim();
-  if(!name) return;
+  if (!name) return;
   const res=await fetch('/api/departments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
   const d=await res.json();
   if(d.success){toast('تم إضافة القسم','success');document.getElementById('newDeptName').value='';loadSettings();refreshLookups();}
   else toast(d.error||'حدث خطأ','error');
 }
-async function addIssueType(){
+async function addIssueType() {
   const name=document.getElementById('newIssueName').value.trim();
-  if(!name) return;
+  if (!name) return;
   const res=await fetch('/api/issue-types',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
   const d=await res.json();
   if(d.success){toast('تم إضافة نوع المشكلة','success');document.getElementById('newIssueName').value='';loadSettings();refreshLookups();}
   else toast(d.error||'حدث خطأ','error');
 }
-async function deleteMgmt(type,id){
+async function deleteMgmt(type, id) {
   const url=type==='dept'?`/api/departments/${id}`:`/api/issue-types/${id}`;
   await fetch(url,{method:'DELETE'});
-  toast('تم الحذف','info');loadSettings();refreshLookups();
+  toast('تم الحذف','info'); loadSettings(); refreshLookups();
 }
-async function refreshLookups(){
-  const res=await fetch('/api/lookups');const d=await res.json();
-  S.depts=d.depts;S.issues=d.issues;
+async function refreshLookups() {
+  const res=await fetch('/api/lookups'); const d=await res.json();
+  S.depts=d.depts; S.issues=d.issues;
   fillSelect('u_dept',S.depts,'-- اختر القسم --');
   fillSelect('u_issue',S.issues,'-- اختر نوع المشكلة --');
 }
 
 // ════════════════════════════════════════════════ EXPORT
-function exportExcel(){toast('جاري تحضير ملف Excel...','info');window.location.href='/api/export/excel';}
-function exportPptx(){toast('جاري تحضير ملف PowerPoint...','info');window.location.href='/api/export/pptx';}
+function exportExcel() { toast('جاري تحضير ملف Excel...','info'); window.location.href='/api/export/excel'; }
+function exportPptx()  { toast('جاري تحضير ملف PowerPoint...','info'); window.location.href='/api/export/pptx'; }
 </script>
 </body>
 </html>
